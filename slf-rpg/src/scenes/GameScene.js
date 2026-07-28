@@ -16,7 +16,6 @@ export class GameScene extends Phaser.Scene {
     this.physics.world.setBounds(0, 0, WORLD_W, WORLD_H);
     this.cameras.main.setBounds(0, 0, WORLD_W, WORLD_H);
 
-    // Simple ground so the world doesn't feel like a void.
     this.add.grid(WORLD_W / 2, WORLD_H / 2, WORLD_W, WORLD_H, 40, 40, 0x14141f, 1, 0x1e1e2c, 1);
 
     this.player = new Player(this, WORLD_W / 2, WORLD_H / 2);
@@ -25,50 +24,13 @@ export class GameScene extends Phaser.Scene {
     this.enemies = [];
     this.spawnEnemies();
 
-    this.lootDrops = []; // { sprite, weapon }
+    this.lootDrops = [];
 
     this.physics.add.overlap(this.player.sprite, this.enemies.map((e) => e.sprite), null, null, this);
-
-    this.input.keyboard.on('keydown-E', () => this.tryPickupLoot());
 
     EventBus.on('equip-weapon', (weaponId) => {
       const weapon = this.player.weapons.equipFromInventory(weaponId);
       if (weapon) EventBus.emit('stats-updated', this.buildStatePayload());
-    });
-
-    // --- Mise à jour de l'affichage HTML de l'inventaire et de l'arme équipée ---
-    EventBus.on('stats-updated', (payload) => {
-      // 1. Mise à jour du bloc Arme équipée
-      const equippedContainer = document.getElementById('equipped-weapon-display');
-      if (equippedContainer && payload.equipped) {
-        const w = payload.equipped;
-        equippedContainer.innerHTML = `<span style="color: #${w.color.toString(16).padStart(6, '0')}">[${w.rarityLabel}]</span> ${w.name}<br><span style="font-size: 12px; color: #aaa;">ATK: ${w.atk} | Vit: ${w.speed} | Crit: ${Math.round(w.crit * 100)}%</span>`;
-      }
-
-      // 2. Mise à jour de la liste de l'inventaire
-      const container = document.getElementById('weapon-list');
-      if (!container) return;
-
-      container.innerHTML = '';
-
-      payload.inventory.forEach((w) => {
-        const itemDiv = document.createElement('div');
-        const isEquipped = payload.equipped.id === w.id;
-        
-        itemDiv.style.margin = '4px 0';
-        itemDiv.style.padding = '4px';
-        itemDiv.style.cursor = 'pointer';
-        itemDiv.style.border = isEquipped ? '1px solid #ff3d5a' : '1px solid #444';
-        itemDiv.style.background = isEquipped ? 'rgba(255, 61, 90, 0.2)' : 'transparent';
-        
-        itemDiv.innerHTML = `<span style="color: #${w.color.toString(16).padStart(6, '0')}">[${w.rarityLabel}]</span> ${w.name} ${isEquipped ? '(Équipé)' : ''}`;
-        
-        itemDiv.onclick = () => {
-          EventBus.emit('equip-weapon', w.id);
-        };
-
-        container.appendChild(itemDiv);
-      });
     });
 
     EventBus.emit('stats-updated', this.buildStatePayload());
@@ -142,15 +104,10 @@ export class GameScene extends Phaser.Scene {
     );
     if (!nearby) return;
 
-    // Ajoute l'arme à l'inventaire du joueur au lieu de l'équiper de force
     this.player.weapons.addToInventory(nearby.weapon);
-    
-    EventBus.emit('loot-log', { type: 'pickup', text: `Inventaire + : ${nearby.weapon.rarityLabel} ${nearby.weapon.name}` });
-    
+    EventBus.emit('loot-log', { type: 'pickup', text: `Récupéré: ${nearby.weapon.rarityLabel} ${nearby.weapon.name}` });
     nearby.sprite.destroy();
     this.lootDrops = this.lootDrops.filter((d) => d !== nearby);
-    
-    // Met à jour l'interface / les stats globales
     EventBus.emit('stats-updated', this.buildStatePayload());
   }
 
@@ -171,12 +128,10 @@ export class GameScene extends Phaser.Scene {
 
   update(time) {
     this.player.update(time, this.enemies, (enemy, dmg, crit) => this.onHitEnemy(enemy, dmg, crit));
-    
     for (const enemy of this.enemies) {
       enemy.update(time, this.player.x, this.player.y);
     }
 
-    // Vérification en continu de l'appui sur la touche E dans l'update
     if (Phaser.Input.Keyboard.JustDown(this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E))) {
       this.tryPickupLoot();
     }
