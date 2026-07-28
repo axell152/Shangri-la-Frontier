@@ -36,6 +36,34 @@ export class GameScene extends Phaser.Scene {
       if (weapon) EventBus.emit('stats-updated', this.buildStatePayload());
     });
 
+    // --- AJOUT : Mise à jour de l'affichage HTML de l'inventaire ---
+    EventBus.on('stats-updated', (payload) => {
+      const container = document.getElementById('weapon-list');
+      if (!container) return;
+
+      container.innerHTML = '';
+
+      payload.inventory.forEach((w) => {
+        const itemDiv = document.createElement('div');
+        const isEquipped = payload.equipped.id === w.id;
+        
+        itemDiv.style.margin = '4px 0';
+        itemDiv.style.padding = '4px';
+        itemDiv.style.cursor = 'pointer';
+        itemDiv.style.border = isEquipped ? '1px solid #ff3d5a' : '1px solid #444';
+        itemDiv.style.background = isEquipped ? 'rgba(255, 61, 90, 0.2)' : 'transparent';
+        
+        itemDiv.innerHTML = `<span style="color: #${w.color.toString(16).padStart(6, '0')}">[${w.rarityLabel}]</span> ${w.name} ${isEquipped ? '(Équipé)' : ''}`;
+        
+        itemDiv.onclick = () => {
+          EventBus.emit('equip-weapon', w.id);
+        };
+
+        container.appendChild(itemDiv);
+      });
+    });
+    // -------------------------------------------------------------
+
     EventBus.emit('stats-updated', this.buildStatePayload());
   }
 
