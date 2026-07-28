@@ -218,27 +218,40 @@ export class Player {
     }
   }
 
-  tryAttack(time, enemies, onHitEnemy) {
+  tryAttack(time, enemies, onHitEnemy, pointer) {
     if (!enemies || time - this.lastAttackAt < this.weapons.attackCooldownMs) return;
     this.lastAttackAt = time;
 
-    this.isAttackingId = true;
     this.isAttackingAnim = true;
     this.attackAnimTimer = 8;
 
+    const isCrit = Math.random() < this.weapons.critChance;
+    const rawDamage = this.weapons.attackDamage + this.stats.totalAtk;
+    const damage = Math.max(1, Math.round(isCrit ? rawDamage * 1.8 : rawDamage));
+
+    // Si c'est un arc, on tire vers le curseur de la souris
+    if (this.weapons.weaponType === 'bow' && pointer) {
+      // Convertit les coordonnées écran du pointeur en coordonnées du monde du jeu
+      const worldPoint = this.scene.cameras.main.getWorldPoint(pointer.x, pointer.y);
+      const angle = Phaser.Math.Angle.Between(this.x, this.y, worldPoint.x, worldPoint.y);
+      
+      if (this.scene.spawnArrow) {
+        this.scene.spawnArrow(this.x, this.y, angle, damage, isCrit, this.weapons.color);
+      }
+      return;
+    }
+
+    // Sinon, comportement normal de Corps-à-Corps
     const range = this.weapons.attackRange;
     for (const enemy of enemies) {
       if (enemy.dead) continue;
       const dist = Phaser.Math.Distance.Between(this.x, this.y, enemy.x, enemy.y);
       if (dist <= range) {
-        const isCrit = Math.random() < this.weapons.critChance;
-        const rawDamage = this.weapons.attackDamage + this.stats.totalAtk - enemy.def;
-        const damage = Math.max(1, Math.round(isCrit ? rawDamage * 1.8 : rawDamage));
-        if (onHitEnemy) onHitEnemy(enemy, damage, isCrit);
+        const enemyDamage = Math.max(1, damage - enemy.def);
+        if (onHitEnemy) onHitEnemy(enemy, enemyDamage, isCrit);
       }
     }
   }
-
   equipWeapon(weapon) {
     this.weapons.equip(weapon);
   }
