@@ -138,7 +138,25 @@ export class Player {
       swing = -0.9 + Math.sin(progress * Math.PI) * 1.6;
     }
 
-    this.weaponGfx.setPosition(this.sprite.x, this.sprite.y - 4);
+    // Ajustement précis du décalage (offset) de la main selon la direction
+    let offsetX = 0;
+    let offsetY = -4;
+
+    if (this.facing === 'right') {
+      offsetX = 11;
+      offsetY = -2;
+    } else if (this.facing === 'left') {
+      offsetX = -11;
+      offsetY = -2;
+    } else if (this.facing === 'down') {
+      offsetX = 8;
+      offsetY = 3;
+    } else if (this.facing === 'up') {
+      offsetX = -8;
+      offsetY = -11;
+    }
+
+    this.weaponGfx.setPosition(this.sprite.x + offsetX, this.sprite.y + offsetY);
     this.weaponGfx.setRotation(baseAngle + swing);
 
     this.drawWeaponShape(weapon);
