@@ -174,14 +174,14 @@ export class GameScene extends Phaser.Scene {
   }
 
   spawnArrow(x, y, angle, damage, isCrit, color) {
-    const speed = 12; // Vitesse en pixels par frame (bien visible à l'écran)
+    const speed = 12;
     const vx = Math.cos(angle) * speed;
     const vy = Math.sin(angle) * speed;
 
-    // Création du graphisme de la flèche
     const gfx = this.add.graphics();
     gfx.setPosition(x, y);
     gfx.setRotation(angle);
+    gfx.setDepth(10); // Force la flèche à s'afficher au premier plan
 
     // Hampe
     gfx.fillStyle(0x8b5a2b, 1);
@@ -203,7 +203,7 @@ export class GameScene extends Phaser.Scene {
       vy,
       damage,
       isCrit,
-      life: 60 // Durée de vie en frames (environ 1 seconde de vol)
+      life: 60
     });
   }
 }
