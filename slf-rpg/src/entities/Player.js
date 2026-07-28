@@ -14,16 +14,18 @@ export class Player {
 
     this.animFrame = 0;
     this.isMoving = false;
+    
+    // Gestion de l'animation visuelle du coup d'épée
+    this.isAttackingAnim = false;
+    this.attackAnimTimer = 0;
 
-    // On garde un rectangle invisible ou un container pour la physique Phaser
-    this.sprite = scene.add.rectangle(x, y, 26, 34, 0x000000, 0); // alpha à 0 pour être invisible
+    // Rectangle invisible pour la physique Phaser
+    this.sprite = scene.add.rectangle(x, y, 26, 34, 0x000000, 0);
     scene.physics.add.existing(this.sprite);
     this.sprite.body.setCollideWorldBounds(true);
 
-    // Un objet Graphics dédié pour dessiner le personnage cubique à chaque frame
+    // Objet Graphics pour dessiner le joueur et ses effets
     this.gfx = scene.add.graphics();
-
-    this.weaponIndicator = scene.add.rectangle(x, y, 8, 8, this.weapons.equipped.color);
 
     this.cursors = scene.input.keyboard.createCursorKeys();
     this.wasd = scene.input.keyboard.addKeys('W,A,S,D');
@@ -54,54 +56,83 @@ export class Player {
       this.animFrame = 0;
     }
 
-    // Dessin du personnage cubique à la position physique actuelle
-    this.drawMinecraftPlayer();
+    // Gestion de la durée de l'effet visuel d'attaque (quelques frames)
+    if (this.isAttackingAnim) {
+      this.attackAnimTimer--;
+      if (this.attackAnimTimer <= 0) {
+        this.isAttackingAnim = false;
+      }
+    }
 
-    this.weaponIndicator.x = this.sprite.x + (this.facing === 'left' ? -18 : this.facing === 'right' ? 18 : 0);
-    this.weaponIndicator.y = this.sprite.y + (this.facing === 'up' ? -18 : this.facing === 'down' ? 18 : 0);
-    this.weaponIndicator.fillColor = this.weapons.equipped.color;
+    // Redessiner le joueur et les effets à chaque frame
+    this.drawPlayerAndEffects();
 
     if (Phaser.Input.Keyboard.JustDown(this.attackKey)) {
       this.tryAttack(time, enemies, onHitEnemy);
     }
   }
 
-  drawMinecraftPlayer() {
+  drawPlayerAndEffects() {
     this.gfx.clear();
     const px = this.sprite.x;
     const py = this.sprite.y;
     let swing = this.isMoving ? Math.sin(this.animFrame) * 6 : 0;
 
-    // Couleurs (style Sunraku / Cubique)
+    // --- 1. DESSIN DU CORPS (Personnage cubique) ---
     const colorPants = 0x333333;
     const colorShirt = 0x0055ff;
     const colorSkin = 0xffdbac;
     const colorMask = 0xffffff;
 
-    // --- 1. LES JAMBES ---
+    // Jambes
     this.gfx.fillStyle(colorPants, 1);
     this.gfx.fillRect(px - 6 + swing, py + 6, 6, 16);
     this.gfx.fillRect(px + 0 - swing, py + 6, 6, 16);
 
-    // --- 2. LE CORPS ---
+    // Torse
     this.gfx.fillStyle(colorShirt, 1);
     this.gfx.fillRect(px - 8, py - 10, 16, 16);
 
-    // --- 3. LES BRAS ---
+    // Bras
+    this.gfx.fillStyle(colorShirt, 1);
     this.gfx.fillRect(px - 14 - swing, py - 10, 6, 14);
     this.gfx.fillRect(px + 8 + swing, py - 10, 6, 14);
 
-    // --- 4. LA TÊTE & MASQUE ---
+    // Tête & Masque
     this.gfx.fillStyle(colorSkin, 1);
     this.gfx.fillRect(px - 10, py - 26, 20, 16);
     
     this.gfx.fillStyle(colorMask, 1);
     this.gfx.fillRect(px - 6, py - 22, 12, 10);
+
+    // --- 2. EFFET VISUEL D'ATTAQUE (SLASH) ---
+    if (this.isAttackingAnim) {
+      this.gfx.lineStyle(3, this.weapons.equipped.color, 1);
+      this.gfx.fillStyle(this.weapons.equipped.color, 0.4);
+
+      let sx = px;
+      let sy = py;
+      let width = 24;
+      let height = 24;
+
+      // Positionner le slash selon la direction du regard
+      if (this.facing === 'left') { sx -= 28; sy -= 10; }
+      else if (this.facing === 'right') { sx += 4; sy -= 10; }
+      else if (this.facing === 'up') { sx -= 12; sy -= 32; }
+      else if (this.facing === 'down') { sx -= 12; sy += 4; }
+
+      this.gfx.strokeRect(sx, sy, width, height);
+      this.gfx.fillRect(sx, sy, width, height);
+    }
   }
 
   tryAttack(time, enemies, onHitEnemy) {
     if (time - this.lastAttackAt < this.weapons.attackCooldownMs) return;
     this.lastAttackAt = time;
+
+    // Déclenchement de l'animation visuelle de coup
+    this.isAttackingAnim = true;
+    this.attackAnimTimer = 8; // Nombre de frames pendant lesquelles l'effet s'affiche
 
     const range = this.weapons.attackRange;
     for (const enemy of enemies) {
