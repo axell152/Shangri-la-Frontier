@@ -21,20 +21,20 @@ export class UIScene extends Phaser.Scene {
       <style>
         #hud { position: fixed; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none;
           font-family: 'Courier New', monospace; color: #fff; }
-        #hud .panel { position: absolute; pointer-events: auto; background: rgba(10,10,16,0.85);
+        #hud .panel { position: absolute; pointer-events: auto; background: rgba(10,10,16,0.92);
           border: 1px solid #333; border-radius: 6px; padding: 8px 12px; }
         #hud-stats { top: 12px; left: 12px; min-width: 200px; }
         #hud-stats .bar-bg { background: #222; border-radius: 3px; height: 10px; margin: 4px 0; overflow: hidden; }
         #hud-stats .bar-fill { height: 100%; }
         #hud-stats .hp-fill { background: #ff3d5a; }
         #hud-stats .xp-fill { background: #3d9dff; }
-        #hud-equip { top: 12px; right: 12px; min-width: 180px; }
+        #hud-equip { top: 12px; right: 12px; min-width: 200px; }
         #hud-equip .rarity { font-weight: bold; }
         #hud-log { bottom: 12px; left: 12px; width: 260px; max-height: 140px; overflow-y: auto; font-size: 12px; }
         #hud-log div { margin: 2px 0; }
-        #hud-inv { bottom: 12px; right: 12px; width: 240px; max-height: 200px; overflow-y: auto; font-size: 12px; }
+        #hud-inv { top: 140px; right: 12px; width: 240px; max-height: 220px; overflow-y: auto; font-size: 12px; }
         #hud-inv .item { display: flex; justify-content: space-between; align-items: center;
-          padding: 3px 0; border-bottom: 1px solid #222; cursor: pointer; }
+          padding: 4px 6px; margin: 3px 0; border: 1px solid #444; border-radius: 4px; cursor: pointer; }
         #hud-inv .item:hover { background: rgba(255,255,255,0.06); }
         #hud-hint { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
           font-size: 11px; color: #999; }
@@ -43,7 +43,7 @@ export class UIScene extends Phaser.Scene {
       <div class="panel" id="hud-equip"></div>
       <div class="panel" id="hud-log"></div>
       <div class="panel" id="hud-inv"></div>
-      <div id="hud-hint">Flèches/WASD: déplacer · Espace: attaquer · E: ramasser</div>
+      <div id="hud-hint">Z,Q,S,D: déplacer · Clic gauche: attaquer · E: ramasser</div>
     `;
     document.getElementById('game-container').appendChild(wrapper);
     this.dom = wrapper;
@@ -66,19 +66,22 @@ export class UIScene extends Phaser.Scene {
     const equipEl = this.dom.querySelector('#hud-equip');
     const w = state.equipped;
     equipEl.innerHTML = w ? `
-      <div>Arme équipée</div>
+      <div style="font-size: 11px; color: #aaa; margin-bottom: 2px;">Arme équipée</div>
       <div class="rarity" style="color:${this.hex(w.color)}">${w.rarityLabel} ${w.name}</div>
-      <div>ATK ${w.atk} · Vitesse ${w.speed} · Crit ${(w.crit * 100).toFixed(0)}%</div>
+      <div style="font-size: 11px; margin-top: 4px;">ATK ${w.atk} · Vit ${w.speed} · Crit ${(w.crit * 100).toFixed(0)}%</div>
     ` : '<div>Aucune arme</div>';
 
     const invEl = this.dom.querySelector('#hud-inv');
-    invEl.innerHTML = `<div style="opacity:0.7;margin-bottom:4px;">Inventaire (${state.inventory.length})</div>` +
-      state.inventory.map((weapon) => `
-        <div class="item" data-id="${weapon.id}">
-          <span style="color:${this.hex(weapon.color)}">${weapon.rarityLabel} ${weapon.name}</span>
-          <span>ATK ${weapon.atk}</span>
-        </div>
-      `).join('');
+    invEl.innerHTML = `<div style="font-weight: bold; color: #ffb200; margin-bottom:6px; border-bottom:1px solid #333; padding-bottom:4px;">Inventaire d'armes (${state.inventory.length})</div>` +
+      state.inventory.map((weapon) => {
+        const isEquipped = state.equipped && state.equipped.id === weapon.id;
+        return `
+          <div class="item" data-id="${weapon.id}" style="border-color: ${isEquipped ? '#ff3d5a' : '#444'}; background: ${isEquipped ? 'rgba(255, 61, 90, 0.15)' : 'transparent'};">
+            <span style="color:${this.hex(weapon.color)}">[${weapon.rarityLabel}] ${weapon.name}</span>
+            ${isEquipped ? '<span style="font-size: 10px; color:#ff3d5a;">Équipé</span>' : ''}
+          </div>
+        `;
+      }).join('');
 
     invEl.querySelectorAll('.item').forEach((el) => {
       el.addEventListener('click', () => EventBus.emit('equip-weapon', el.dataset.id));

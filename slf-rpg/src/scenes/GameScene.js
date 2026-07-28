@@ -16,7 +16,6 @@ export class GameScene extends Phaser.Scene {
     this.physics.world.setBounds(0, 0, WORLD_W, WORLD_H);
     this.cameras.main.setBounds(0, 0, WORLD_W, WORLD_H);
 
-    // Simple ground so the world doesn't feel like a void.
     this.add.grid(WORLD_W / 2, WORLD_H / 2, WORLD_W, WORLD_H, 40, 40, 0x14141f, 1, 0x1e1e2c, 1);
 
     this.player = new Player(this, WORLD_W / 2, WORLD_H / 2);
@@ -25,11 +24,9 @@ export class GameScene extends Phaser.Scene {
     this.enemies = [];
     this.spawnEnemies();
 
-    this.lootDrops = []; // { sprite, weapon }
+    this.lootDrops = [];
 
     this.physics.add.overlap(this.player.sprite, this.enemies.map((e) => e.sprite), null, null, this);
-
-    this.input.keyboard.on('keydown-E', () => this.tryPickupLoot());
 
     EventBus.on('equip-weapon', (weaponId) => {
       const weapon = this.player.weapons.equipFromInventory(weaponId);
@@ -101,7 +98,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   tryPickupLoot() {
-    const pickupRange = 40;
+    const pickupRange = 60;
     const nearby = this.lootDrops.find(
       (drop) => Phaser.Math.Distance.Between(this.player.x, this.player.y, drop.sprite.x, drop.sprite.y) < pickupRange
     );
@@ -133,6 +130,10 @@ export class GameScene extends Phaser.Scene {
     this.player.update(time, this.enemies, (enemy, dmg, crit) => this.onHitEnemy(enemy, dmg, crit));
     for (const enemy of this.enemies) {
       enemy.update(time, this.player.x, this.player.y);
+    }
+
+    if (Phaser.Input.Keyboard.JustDown(this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E))) {
+      this.tryPickupLoot();
     }
   }
 }

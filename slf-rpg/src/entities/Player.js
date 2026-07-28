@@ -25,7 +25,7 @@ export class Player {
 
     this.gfx = scene.add.graphics();
 
-    // Configuration des touches ZQSD et de la souris (clic gauche)
+    // Configuration des touches ZQSD
     this.wasd = scene.input.keyboard.addKeys({
       up: Phaser.Input.Keyboard.KeyCodes.Z,
       left: Phaser.Input.Keyboard.KeyCodes.Q,
@@ -33,10 +33,9 @@ export class Player {
       right: Phaser.Input.Keyboard.KeyCodes.D
     });
 
-    // Écoute du clic gauche de la souris
+    // Écoute du clic gauche de la souris pour attaquer
     scene.input.on('pointerdown', (pointer) => {
       if (pointer.leftButtonDown()) {
-        // On récupère le temps de la scène pour l'attaque
         this.tryAttack(scene.time.now, scene.enemiesRef || [], scene.onHitEnemyRef);
       }
     });
@@ -136,6 +135,7 @@ export class Player {
     if (!enemies || time - this.lastAttackAt < this.weapons.attackCooldownMs) return;
     this.lastAttackAt = time;
 
+    this.isAttackingId = true;
     this.isAttackingAnim = true;
     this.attackAnimTimer = 8;
 
