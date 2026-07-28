@@ -229,16 +229,15 @@ export class Player {
     const rawDamage = this.weapons.attackDamage + this.stats.totalAtk;
     const damage = Math.max(1, Math.round(isCrit ? rawDamage * 1.8 : rawDamage));
 
-    // Si c'est un arc, on tire vers le curseur de la souris
-    if (this.weapons.weaponType === 'bow' && pointer) {
-      // Convertit les coordonnées écran du pointeur en coordonnées du monde du jeu
+    // CORRECTION : On vérifie .kind et on s'assure qu'une arme est bien équipée
+    if (this.weapons.equipped && this.weapons.equipped.kind === 'bow' && pointer) {
       const worldPoint = this.scene.cameras.main.getWorldPoint(pointer.x, pointer.y);
       const angle = Phaser.Math.Angle.Between(this.x, this.y, worldPoint.x, worldPoint.y);
       
       if (this.scene.spawnArrow) {
-        this.scene.spawnArrow(this.x, this.y, angle, damage, isCrit, this.weapons.color);
+        this.scene.spawnArrow(this.x, this.y, angle, damage, isCrit, this.weapons.equipped.color);
       }
-      return;
+      return; // Empêche strictement le corps-à-corps de s'exécuter
     }
 
     // Sinon, comportement normal de Corps-à-Corps
