@@ -25,18 +25,18 @@ export class Player {
 
     this.gfx = scene.add.graphics();
 
-    // Configuration des touches ZQSD et de la souris (clic gauche)
+    // Configuration des touches ZQSD et de la touche E pour interagir
     this.wasd = scene.input.keyboard.addKeys({
       up: Phaser.Input.Keyboard.KeyCodes.Z,
       left: Phaser.Input.Keyboard.KeyCodes.Q,
       down: Phaser.Input.Keyboard.KeyCodes.S,
-      right: Phaser.Input.Keyboard.KeyCodes.D
+      right: Phaser.Input.Keyboard.KeyCodes.D,
+      interact: Phaser.Input.Keyboard.KeyCodes.E
     });
 
     // Écoute du clic gauche de la souris
     scene.input.on('pointerdown', (pointer) => {
       if (pointer.leftButtonDown()) {
-        // On récupère le temps de la scène pour l'attaque
         this.tryAttack(scene.time.now, scene.enemiesRef || [], scene.onHitEnemyRef);
       }
     });
@@ -79,6 +79,11 @@ export class Player {
     }
 
     this.drawPlayerAndEffects();
+
+    // Vérifier si le joueur appuie sur la touche E pour ramasser/interagir
+    if (Phaser.Input.Keyboard.JustDown(this.wasd.interact)) {
+      this.tryInteractWithItems(this.scene.itemsRef || []);
+    }
   }
 
   drawPlayerAndEffects() {
@@ -148,6 +153,24 @@ export class Player {
         const rawDamage = this.weapons.attackDamage + this.stats.totalAtk - enemy.def;
         const damage = Math.max(1, Math.round(isCrit ? rawDamage * 1.8 : rawDamage));
         if (onHitEnemy) onHitEnemy(enemy, damage, isCrit);
+      }
+    }
+  }
+
+  // C'est ici qu'on ajoute la fonction pour interagir/ramasser avec E
+  tryInteractWithItems(items) {
+    const pickupRange = 40;
+
+    for (let i = items.length - 1; i >= 0; i--) {
+      const item = items[i];
+      if (item.collected) continue;
+
+      const dist = Phaser.Math.Distance.Between(this.x, this.y, item.x, item.y);
+      if (dist <= pickupRange) {
+        if (typeof this.scene.onPickupItem === 'function') {
+          this.scene.onPickupItem(item);
+        }
+        break;
       }
     }
   }
