@@ -24,6 +24,7 @@ export class Player {
     this.sprite.body.setCollideWorldBounds(true);
 
     this.gfx = scene.add.graphics();
+    this.weaponGfx = scene.add.graphics();
 
     // Configuration des touches ZQSD
     this.wasd = scene.input.keyboard.addKeys({
@@ -78,6 +79,7 @@ export class Player {
     }
 
     this.drawPlayerAndEffects();
+    this.drawWeapon();
   }
 
   drawPlayerAndEffects() {
@@ -110,24 +112,88 @@ export class Player {
     
     this.gfx.fillStyle(colorMask, 1);
     this.gfx.fillRect(px - 6, py - 22, 12, 10);
+  }
 
-    // Effet visuel d'attaque (Slash)
+  // Positionne et fait pivoter l'arme selon la direction du joueur,
+  // avec un swing pendant l'attaque. La forme elle-même est dessinée
+  // en coordonnées locales (pivot à l'origine, pointant vers +x)
+  // dans drawWeaponShape, puis tournée via la rotation de l'objet.
+  drawWeapon() {
+    const weapon = this.weapons.equipped;
+    this.weaponGfx.clear();
+    if (!weapon) return;
+
+    const facingAngles = {
+      right: 0,
+      down: Math.PI / 2,
+      left: Math.PI,
+      up: -Math.PI / 2
+    };
+    const baseAngle = facingAngles[this.facing] ?? 0;
+
+    // Swing pendant l'attaque : part en retrait puis balaie vers l'avant.
+    let swing = 0;
     if (this.isAttackingAnim) {
-      this.gfx.lineStyle(3, this.weapons.equipped.color, 1);
-      this.gfx.fillStyle(this.weapons.equipped.color, 0.4);
+      const progress = 1 - this.attackAnimTimer / 8; // 0 -> 1 sur la durée de l'anim
+      swing = -0.9 + Math.sin(progress * Math.PI) * 1.6;
+    }
 
-      let sx = px;
-      let sy = py;
-      let width = 24;
-      let height = 24;
+    this.weaponGfx.setPosition(this.sprite.x, this.sprite.y - 4);
+    this.weaponGfx.setRotation(baseAngle + swing);
 
-      if (this.facing === 'left') { sx -= 28; sy -= 10; }
-      else if (this.facing === 'right') { sx += 4; sy -= 10; }
-      else if (this.facing === 'up') { sx -= 12; sy -= 32; }
-      else if (this.facing === 'down') { sx -= 12; sy += 4; }
+    this.drawWeaponShape(weapon);
+  }
 
-      this.gfx.strokeRect(sx, sy, width, height);
-      this.gfx.fillRect(sx, sy, width, height);
+  drawWeaponShape(weapon) {
+    const color = weapon.color;
+    const g = this.weaponGfx;
+
+    switch (weapon.kind) {
+      case 'sword':
+        g.fillStyle(0x3a2a1a, 1);
+        g.fillRect(-9, -3, 9, 6); // poignée
+        g.fillStyle(0x999999, 1);
+        g.fillRect(0, -7, 3, 14); // garde
+        g.fillStyle(color, 1);
+        g.fillRect(3, -2, 20, 4); // lame
+        break;
+
+      case 'dagger':
+        g.fillStyle(0x3a2a1a, 1);
+        g.fillRect(-6, -2, 6, 4); // poignée
+        g.fillStyle(color, 1);
+        g.fillTriangle(0, -3, 0, 3, 14, 0); // lame courte
+        break;
+
+      case 'spear':
+        g.fillStyle(0x5a4632, 1);
+        g.fillRect(-16, -2, 36, 3); // hampe
+        g.fillStyle(color, 1);
+        g.fillTriangle(20, -5, 20, 5, 33, 0); // pointe
+        break;
+
+      case 'axe':
+        g.fillStyle(0x5a4632, 1);
+        g.fillRect(-8, -2, 26, 3); // manche
+        g.fillStyle(color, 1);
+        g.fillTriangle(14, -11, 14, 11, 27, 0); // fer, côté avant
+        g.fillTriangle(14, -11, 14, 11, 4, 0); // fer, côté arrière
+        break;
+
+      case 'bow': {
+        const r = 14;
+        g.lineStyle(3, color, 1);
+        g.beginPath();
+        g.arc(0, 0, r, -1.0, 1.0, false);
+        g.strokePath();
+        g.lineStyle(1, 0xdddddd, 1);
+        g.lineBetween(r * Math.cos(-1.0), r * Math.sin(-1.0), r * Math.cos(1.0), r * Math.sin(1.0));
+        break;
+      }
+
+      default:
+        g.fillStyle(color, 1);
+        g.fillRect(0, -3, 14, 6);
     }
   }
 
