@@ -15,7 +15,6 @@ export class Player {
     this.animFrame = 0;
     this.isMoving = false;
     
-    // Gestion de l'animation visuelle du coup d'épée
     this.isAttackingAnim = false;
     this.attackAnimTimer = 0;
 
@@ -24,28 +23,44 @@ export class Player {
     scene.physics.add.existing(this.sprite);
     this.sprite.body.setCollideWorldBounds(true);
 
-    // Objet Graphics pour dessiner le joueur et ses effets
     this.gfx = scene.add.graphics();
 
-    this.cursors = scene.input.keyboard.createCursorKeys();
-    this.wasd = scene.input.keyboard.addKeys('W,A,S,D');
-    this.attackKey = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    // Configuration des touches ZQSD et de la souris (clic gauche)
+    this.wasd = scene.input.keyboard.addKeys({
+      up: Phaser.Input.Keyboard.KeyCodes.Z,
+      left: Phaser.Input.Keyboard.KeyCodes.Q,
+      down: Phaser.Input.Keyboard.KeyCodes.S,
+      right: Phaser.Input.Keyboard.KeyCodes.D
+    });
+
+    // Écoute du clic gauche de la souris
+    scene.input.on('pointerdown', (pointer) => {
+      if (pointer.leftButtonDown()) {
+        // On récupère le temps de la scène pour l'attaque
+        this.tryAttack(scene.time.now, scene.enemiesRef || [], scene.onHitEnemyRef);
+      }
+    });
   }
 
   get x() { return this.sprite.x; }
   get y() { return this.sprite.y; }
 
   update(time, enemies, onHitEnemy) {
+    // Stockage temporaire des références pour le clic de souris
+    this.scene.enemiesRef = enemies;
+    this.scene.onHitEnemyRef = onHitEnemy;
+
     const body = this.sprite.body;
     let vx = 0;
     let vy = 0;
 
     this.isMoving = false;
 
-    if (this.cursors.left.isDown || this.wasd.A.isDown) { vx = -1; this.facing = 'left'; this.isMoving = true; }
-    else if (this.cursors.right.isDown || this.wasd.D.isDown) { vx = 1; this.facing = 'right'; this.isMoving = true; }
-    if (this.cursors.up.isDown || this.wasd.W.isDown) { vy = -1; this.facing = 'up'; this.isMoving = true; }
-    else if (this.cursors.down.isDown || this.wasd.S.isDown) { vy = 1; this.facing = 'down'; this.isMoving = true; }
+    // Utilisation exclusive de Z, Q, S, D
+    if (this.wasd.left.isDown) { vx = -1; this.facing = 'left'; this.isMoving = true; }
+    else if (this.wasd.right.isDown) { vx = 1; this.facing = 'right'; this.isMoving = true; }
+    if (this.wasd.up.isDown) { vy = -1; this.facing = 'up'; this.isMoving = true; }
+    else if (this.wasd.down.isDown) { vy = 1; this.facing = 'down'; this.isMoving = true; }
 
     const len = Math.hypot(vx, vy) || 1;
     body.setVelocity((vx / len) * MOVE_SPEED, (vy / len) * MOVE_SPEED);
@@ -56,7 +71,6 @@ export class Player {
       this.animFrame = 0;
     }
 
-    // Gestion de la durée de l'effet visuel d'attaque (quelques frames)
     if (this.isAttackingAnim) {
       this.attackAnimTimer--;
       if (this.attackAnimTimer <= 0) {
@@ -64,12 +78,7 @@ export class Player {
       }
     }
 
-    // Redessiner le joueur et les effets à chaque frame
     this.drawPlayerAndEffects();
-
-    if (Phaser.Input.Keyboard.JustDown(this.attackKey)) {
-      this.tryAttack(time, enemies, onHitEnemy);
-    }
   }
 
   drawPlayerAndEffects() {
@@ -78,7 +87,6 @@ export class Player {
     const py = this.sprite.y;
     let swing = this.isMoving ? Math.sin(this.animFrame) * 6 : 0;
 
-    // --- 1. DESSIN DU CORPS (Personnage cubique) ---
     const colorPants = 0x333333;
     const colorShirt = 0x0055ff;
     const colorSkin = 0xffdbac;
@@ -94,7 +102,6 @@ export class Player {
     this.gfx.fillRect(px - 8, py - 10, 16, 16);
 
     // Bras
-    this.gfx.fillStyle(colorShirt, 1);
     this.gfx.fillRect(px - 14 - swing, py - 10, 6, 14);
     this.gfx.fillRect(px + 8 + swing, py - 10, 6, 14);
 
@@ -105,7 +112,7 @@ export class Player {
     this.gfx.fillStyle(colorMask, 1);
     this.gfx.fillRect(px - 6, py - 22, 12, 10);
 
-    // --- 2. EFFET VISUEL D'ATTAQUE (SLASH) ---
+    // Effet visuel d'attaque (Slash)
     if (this.isAttackingAnim) {
       this.gfx.lineStyle(3, this.weapons.equipped.color, 1);
       this.gfx.fillStyle(this.weapons.equipped.color, 0.4);
@@ -115,7 +122,6 @@ export class Player {
       let width = 24;
       let height = 24;
 
-      // Positionner le slash selon la direction du regard
       if (this.facing === 'left') { sx -= 28; sy -= 10; }
       else if (this.facing === 'right') { sx += 4; sy -= 10; }
       else if (this.facing === 'up') { sx -= 12; sy -= 32; }
@@ -127,12 +133,11 @@ export class Player {
   }
 
   tryAttack(time, enemies, onHitEnemy) {
-    if (time - this.lastAttackAt < this.weapons.attackCooldownMs) return;
+    if (!enemies || time - this.lastAttackAt < this.weapons.attackCooldownMs) return;
     this.lastAttackAt = time;
 
-    // Déclenchement de l'animation visuelle de coup
     this.isAttackingAnim = true;
-    this.attackAnimTimer = 8; // Nombre de frames pendant lesquelles l'effet s'affiche
+    this.attackAnimTimer = 8;
 
     const range = this.weapons.attackRange;
     for (const enemy of enemies) {
@@ -142,7 +147,7 @@ export class Player {
         const isCrit = Math.random() < this.weapons.critChance;
         const rawDamage = this.weapons.attackDamage + this.stats.totalAtk - enemy.def;
         const damage = Math.max(1, Math.round(isCrit ? rawDamage * 1.8 : rawDamage));
-        onHitEnemy(enemy, damage, isCrit);
+        if (onHitEnemy) onHitEnemy(enemy, damage, isCrit);
       }
     }
   }
