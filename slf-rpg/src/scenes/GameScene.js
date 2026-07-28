@@ -136,24 +136,33 @@ export class GameScene extends Phaser.Scene {
     // Gestion des flèches en vol
     for (let i = this.arrows.length - 1; i >= 0; i--) {
       const arrow = this.arrows[i];
+      
+      // Utilisation directe d'une vitesse en pixels/frame (ex: 12 pixels par frame)
       arrow.x += arrow.vx;
       arrow.y += arrow.vy;
-      arrow.sprite.setPosition(arrow.x, arrow.y);
+      
+      // Mise à jour de la position visuelle
+      if (arrow.sprite && arrow.sprite.setActive) {
+        arrow.sprite.setPosition(arrow.x, arrow.y);
+      }
+      
       arrow.life--;
 
+      // Collision avec les ennemis
       for (const enemy of this.enemies) {
         if (enemy.dead) continue;
         const dist = Phaser.Math.Distance.Between(arrow.x, arrow.y, enemy.x, enemy.y);
         if (dist < 18) {
           const enemyDamage = Math.max(1, arrow.damage - enemy.def);
-            this.onHitEnemy(enemy, enemyDamage, arrow.isCrit);
+          this.onHitEnemy(enemy, enemyDamage, arrow.isCrit);
           arrow.sprite.destroy();
           this.arrows.splice(i, 1);
           break;
         }
       }
 
-      if (arrow.life <= 0 || arrow.sprite.active === false) {
+      // Destruction si la flèche expire
+      if (arrow.life <= 0) {
         if (arrow.sprite) arrow.sprite.destroy();
         this.arrows.splice(i, 1);
       }
@@ -165,21 +174,36 @@ export class GameScene extends Phaser.Scene {
   }
 
   spawnArrow(x, y, angle, damage, isCrit, color) {
-    const speed = 450;
-    const vx = Math.cos(angle) * (speed * 0.016);
-    const vy = Math.sin(angle) * (speed * 0.016);
+    const speed = 12; // Vitesse en pixels par frame (bien visible à l'écran)
+    const vx = Math.cos(angle) * speed;
+    const vy = Math.sin(angle) * speed;
 
-    const sprite = this.add.rectangle(x, y, 12, 4, color).setRotation(angle);
+    // Création du graphisme de la flèche
+    const gfx = this.add.graphics();
+    gfx.setPosition(x, y);
+    gfx.setRotation(angle);
+
+    // Hampe
+    gfx.fillStyle(0x8b5a2b, 1);
+    gfx.fillRect(-10, -1.5, 16, 3);
+    
+    // Pointe
+    gfx.fillStyle(color, 1);
+    gfx.fillTriangle(6, -4, 6, 4, 13, 0);
+
+    // Empennage
+    gfx.fillStyle(0xcccccc, 1);
+    gfx.fillTriangle(-10, -3, -10, 3, -14, 0);
 
     this.arrows.push({
-      sprite,
+      sprite: gfx,
       x,
       y,
       vx,
       vy,
       damage,
       isCrit,
-      life: 50
+      life: 60 // Durée de vie en frames (environ 1 seconde de vol)
     });
   }
 }
