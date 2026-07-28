@@ -107,13 +107,15 @@ export class GameScene extends Phaser.Scene {
     );
     if (!nearby) return;
 
-    // Équipe directement l'arme ramassée pour éviter le crash
-    this.player.equipWeapon(nearby.weapon);
+    // Ajoute l'arme à l'inventaire du joueur au lieu de l'équiper de force
+    this.player.weapons.addToInventory(nearby.weapon);
     
-    EventBus.emit('loot-log', { type: 'pickup', text: `Récupéré et équipé : ${nearby.weapon.rarityLabel} ${nearby.weapon.name}` });
+    EventBus.emit('loot-log', { type: 'pickup', text: `Inventaire + : ${nearby.weapon.rarityLabel} ${nearby.weapon.name}` });
     
     nearby.sprite.destroy();
     this.lootDrops = this.lootDrops.filter((d) => d !== nearby);
+    
+    // Met à jour l'interface / les stats globales
     EventBus.emit('stats-updated', this.buildStatePayload());
   }
 
