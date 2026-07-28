@@ -146,17 +146,17 @@ export class Player {
     let offsetY = -4;
 
     if (this.facing === 'right') {
-      offsetX = 11;
+      offsetX = 18;
       offsetY = -2 + armSwing; // Le bras monte et descend en marchant
     } else if (this.facing === 'left') {
-      offsetX = -11;
+      offsetX = -18;
       offsetY = -2 - armSwing;
     } else if (this.facing === 'down') {
-      offsetX = 8 + armSwing;  // Le bras avance et recule en marchant
-      offsetY = 3;
+      offsetX = 6 + armSwing;  // Le bras avance et recule en marchant
+      offsetY = 12;
     } else if (this.facing === 'up') {
-      offsetX = -8 - armSwing;
-      offsetY = -11;
+      offsetX = -6 - armSwing;
+      offsetY = -12;
     }
 
     this.weaponGfx.setPosition(this.sprite.x + offsetX, this.sprite.y + offsetY);
