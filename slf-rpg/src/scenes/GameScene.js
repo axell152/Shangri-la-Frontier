@@ -36,8 +36,16 @@ export class GameScene extends Phaser.Scene {
       if (weapon) EventBus.emit('stats-updated', this.buildStatePayload());
     });
 
-    // --- AJOUT : Mise à jour de l'affichage HTML de l'inventaire ---
+    // --- Mise à jour de l'affichage HTML de l'inventaire et de l'arme équipée ---
     EventBus.on('stats-updated', (payload) => {
+      // 1. Mise à jour du bloc Arme équipée
+      const equippedContainer = document.getElementById('equipped-weapon-display');
+      if (equippedContainer && payload.equipped) {
+        const w = payload.equipped;
+        equippedContainer.innerHTML = `<span style="color: #${w.color.toString(16).padStart(6, '0')}">[${w.rarityLabel}]</span> ${w.name}<br><span style="font-size: 12px; color: #aaa;">ATK: ${w.atk} | Vit: ${w.speed} | Crit: ${Math.round(w.crit * 100)}%</span>`;
+      }
+
+      // 2. Mise à jour de la liste de l'inventaire
       const container = document.getElementById('weapon-list');
       if (!container) return;
 
@@ -60,21 +68,8 @@ export class GameScene extends Phaser.Scene {
         };
 
         container.appendChild(itemDiv);
-
-        // Dans ton écouteur stats-updated de GameScene.js :
-const equippedContainer = document.getElementById('equipped-weapon-display');
-if (equippedContainer && payload.equipped) {
-  const w = payload.equipped;
-  equippedContainer.innerHTML = `<span style="color: #${w.color.toString(16).padStart(6, '0')}">[${w.rarityLabel}]</span> ${w.name}<br><span style="font-size: 12px; color: #aaa;">ATK: ${w.atk} | Vit: ${w.speed} | Crit: ${Math.round(w.crit * 100)}%</span>`;
-}// Dans ton écouteur stats-updated de GameScene.js :
-const equippedContainer = document.getElementById('equipped-weapon-display');
-if (equippedContainer && payload.equipped) {
-  const w = payload.equipped;
-  equippedContainer.innerHTML = `<span style="color: #${w.color.toString(16).padStart(6, '0')}">[${w.rarityLabel}]</span> ${w.name}<br><span style="font-size: 12px; color: #aaa;">ATK: ${w.atk} | Vit: ${w.speed} | Crit: ${Math.round(w.crit * 100)}%</span>`;
-}
       });
     });
-    // -------------------------------------------------------------
 
     EventBus.emit('stats-updated', this.buildStatePayload());
   }
