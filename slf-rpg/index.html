@@ -9,10 +9,17 @@
 <body>
   <div id="game-container"></div>
 
-  <!-- Panneau d'inventaire simple positionné en haut à droite -->
-  <div id="inventory-ui" style="position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.85); color: white; padding: 12px; font-family: monospace; border-radius: 6px; border: 1px solid #444; pointer-events: auto; z-index: 10;">
-    <h3 style="margin: 0 0 8px 0; font-size: 14px; color: #ffb200; border-bottom: 1px solid #444; padding-bottom: 4px;">Inventaire d'armes</h3>
-    <div id="weapon-list">Vide</div>
+  <!-- Conteneur global en haut à droite pour empiler les blocs proprement -->
+  <div style="position: absolute; top: 20px; right: 20px; display: flex; flex-direction: column; gap: 10px; pointer-events: none; z-index: 10;">
+    
+    <!-- Si tu as un bloc pour l'arme équipée, mets-le ici ou laisse ton autre élément -->
+    
+    <!-- Panneau d'inventaire d'armes -->
+    <div id="inventory-ui" style="background: rgba(0,0,0,0.85); color: white; padding: 12px; font-family: monospace; border-radius: 6px; border: 1px solid #444; pointer-events: auto; min-width: 220px;">
+      <h3 style="margin: 0 0 8px 0; font-size: 14px; color: #ffb200; border-bottom: 1px solid #444; padding-bottom: 4px;">Inventaire d'armes</h3>
+      <div id="weapon-list">Vide</div>
+    </div>
+
   </div>
 
   <script type="module" src="/src/main.js"></script>
