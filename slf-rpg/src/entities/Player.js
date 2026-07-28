@@ -131,33 +131,36 @@ export class Player {
     };
     const baseAngle = facingAngles[this.facing] ?? 0;
 
-    // Swing pendant l'attaque : part en retrait puis balaie vers l'avant.
-    let swing = 0;
+    // Swing des bras lorsque le joueur marche (même logique que dans drawPlayerAndEffects)
+    let armSwing = this.isMoving ? Math.sin(this.animFrame) * 6 : 0;
+
+    // Swing supplémentaire lors de l'attaque
+    let attackSwing = 0;
     if (this.isAttackingAnim) {
-      const progress = 1 - this.attackAnimTimer / 8; // 0 -> 1 sur la durée de l'anim
-      swing = -0.9 + Math.sin(progress * Math.PI) * 1.6;
+      const progress = 1 - this.attackAnimTimer / 8;
+      attackSwing = -0.9 + Math.sin(progress * Math.PI) * 1.6;
     }
 
-    // Ajustement précis du décalage (offset) de la main selon la direction
+    // Position de base de la main + application du balancement du bras (armSwing)
     let offsetX = 0;
     let offsetY = -4;
 
     if (this.facing === 'right') {
       offsetX = 11;
-      offsetY = -2;
+      offsetY = -2 + armSwing; // Le bras monte et descend en marchant
     } else if (this.facing === 'left') {
       offsetX = -11;
-      offsetY = -2;
+      offsetY = -2 - armSwing;
     } else if (this.facing === 'down') {
-      offsetX = 8;
+      offsetX = 8 + armSwing;  // Le bras avance et recule en marchant
       offsetY = 3;
     } else if (this.facing === 'up') {
-      offsetX = -8;
+      offsetX = -8 - armSwing;
       offsetY = -11;
     }
 
     this.weaponGfx.setPosition(this.sprite.x + offsetX, this.sprite.y + offsetY);
-    this.weaponGfx.setRotation(baseAngle + swing);
+    this.weaponGfx.setRotation(baseAngle + attackSwing);
 
     this.drawWeaponShape(weapon);
   }
