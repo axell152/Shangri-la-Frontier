@@ -101,7 +101,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   tryPickupLoot() {
-    const pickupRange = 40;
+    const pickupRange = 60;
     const nearby = this.lootDrops.find(
       (drop) => Phaser.Math.Distance.Between(this.player.x, this.player.y, drop.sprite.x, drop.sprite.y) < pickupRange
     );
@@ -131,8 +131,14 @@ export class GameScene extends Phaser.Scene {
 
   update(time) {
     this.player.update(time, this.enemies, (enemy, dmg, crit) => this.onHitEnemy(enemy, dmg, crit));
+    
     for (const enemy of this.enemies) {
       enemy.update(time, this.player.x, this.player.y);
+    }
+
+    // Vérification en continu de l'appui sur la touche E dans l'update
+    if (Phaser.Input.Keyboard.JustDown(this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E))) {
+      this.tryPickupLoot();
     }
   }
 }
