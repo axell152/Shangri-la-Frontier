@@ -36,10 +36,10 @@ export class Player {
 
     // Écoute du clic gauche de la souris pour attaquer
     scene.input.on('pointerdown', (pointer) => {
-      if (pointer.leftButtonDown()) {
-        this.tryAttack(scene.time.now, scene.enemiesRef || [], scene.onHitEnemyRef);
-      }
-    });
+  if (pointer.leftButtonDown()) {
+    this.tryAttack(scene.time.now, scene.enemiesRef || [], scene.onHitEnemyRef, pointer);
+  }
+});
   }
 
   get x() { return this.sprite.x; }
