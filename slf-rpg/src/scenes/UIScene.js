@@ -47,6 +47,10 @@ export class UIScene extends Phaser.Scene {
           color: #ff3d5a; font-size: 28px; letter-spacing: 2px; text-align: center; pointer-events: none; }
         #hud-gameover span { font-size: 13px; color: #ccc; margin-top: 8px; letter-spacing: 0; }
         #hud-gameover.active { display: flex; }
+        #hud-respawn-btn { margin-top: 16px; padding: 8px 20px; background: #ff3d5a; color: #fff;
+          border: none; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 13px;
+          cursor: pointer; pointer-events: auto; letter-spacing: 1px; }
+        #hud-respawn-btn:hover { background: #ff5d75; }
       </style>
       <div class="panel" id="hud-stats"></div>
       <div class="panel" id="hud-equip"></div>
@@ -54,11 +58,19 @@ export class UIScene extends Phaser.Scene {
       <div class="panel" id="hud-inv"></div>
       <div id="hud-hint">Z,Q,S,D: déplacer · Clic gauche: attaquer · E: ramasser</div>
       <div id="hud-hitflash"></div>
-      <div id="hud-gameover">TU ES MORT<br><span>Recharge la page pour recommencer</span></div>
+      <div id="hud-gameover">
+        TU ES MORT<br>
+        <span>Ton équipement reste dans l'inventaire</span>
+        <button id="hud-respawn-btn">Respawn</button>
+      </div>
     `;
     document.getElementById('game-container').appendChild(wrapper);
     this.dom = wrapper;
     this.logEntries = [];
+
+    this.dom.querySelector('#hud-respawn-btn').addEventListener('click', () => {
+      EventBus.emit('respawn-request');
+    });
   }
 
   render(state) {
@@ -74,9 +86,8 @@ export class UIScene extends Phaser.Scene {
       <div>XP ${state.xp} / ${state.xpToNext}</div>
     `;
 
-    if (state.hp <= 0) {
-      this.dom.querySelector('#hud-gameover').classList.add('active');
-    }
+    const gameOverEl = this.dom.querySelector('#hud-gameover');
+    gameOverEl.classList.toggle('active', state.hp <= 0);
 
     const equipEl = this.dom.querySelector('#hud-equip');
     const w = state.equipped;
