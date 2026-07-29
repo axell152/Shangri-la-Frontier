@@ -241,8 +241,8 @@ export class Player {
       const angle = Phaser.Math.Angle.Between(this.x, this.y, worldPoint.x, worldPoint.y);
       
       if (this.scene.spawnArrow) {
-        this.scene.spawnArrow(this.x, this.y, angle, damage, isCrit, this.weapons.equipped.color);
-      }
+  this.scene.spawnArrow(this.x, this.y, angle, damage, isCrit, this.weapons.equipped.color, this.weapons.equipped.range);
+}
       return; // Empêche strictement le corps-à-corps de s'exécuter
     }
 
