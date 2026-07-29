@@ -56,7 +56,9 @@ export class UIScene extends Phaser.Scene {
       <div class="panel" id="hud-equip"></div>
       <div class="panel" id="hud-log"></div>
       <div class="panel" id="hud-inv"></div>
-      <div id="hud-hint">Z,Q,S,D: déplacer · Clic gauche: attaquer · E: ramasser</div>
+      <div id="hud-hint">Z,Q,S,D: déplacer · Clic gauche: attaquer · E: ramasser
+        · <span id="hud-reset-save" style="text-decoration: underline; cursor: pointer; pointer-events: auto;">réinitialiser la sauvegarde</span>
+      </div>
       <div id="hud-hitflash"></div>
       <div id="hud-gameover">
         TU ES MORT<br>
@@ -70,6 +72,12 @@ export class UIScene extends Phaser.Scene {
 
     this.dom.querySelector('#hud-respawn-btn').addEventListener('click', () => {
       EventBus.emit('respawn-request');
+    });
+
+    this.dom.querySelector('#hud-reset-save').addEventListener('click', () => {
+      if (confirm('Effacer ta sauvegarde et recommencer à zéro (niveau, inventaire, tout) ?')) {
+        EventBus.emit('reset-save-request');
+      }
     });
   }
 
