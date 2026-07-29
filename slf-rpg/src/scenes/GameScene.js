@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { Player } from '../entities/Player.js';
 import { Enemy } from '../entities/Enemy.js';
 import { LootSystem } from '../systems/LootSystem.js';
+import { SaveSystem } from '../systems/SaveSystem.js';
 import { EventBus } from '../EventBus.js';
 
 const WORLD_W = 1600;
@@ -28,17 +29,43 @@ export class GameScene extends Phaser.Scene {
     this.player = new Player(this, WORLD_W / 2, WORLD_H / 2);
     this.cameras.main.startFollow(this.player.sprite, true, 0.1, 0.1);
 
+    const save = SaveSystem.load();
+    if (save) {
+      SaveSystem.applyTo(this.player, save);
+      EventBus.emit('loot-log', { type: 'pickup', text: 'Sauvegarde chargée.' });
+    }
+
     this.physics.add.overlap(this.player.sprite, this.enemyGroup, (playerSprite, enemySprite) =>
       this.handleEnemyContact(enemySprite), null, this);
 
     EventBus.on('equip-weapon', (weaponId) => {
       const weapon = this.player.weapons.equipFromInventory(weaponId);
-      if (weapon) EventBus.emit('stats-updated', this.buildStatePayload());
+      if (weapon) {
+        EventBus.emit('stats-updated', this.buildStatePayload());
+        this.autoSave();
+      }
     });
 
     EventBus.on('respawn-request', () => this.respawnPlayer());
 
+    EventBus.on('reset-save-request', () => {
+      SaveSystem.clear();
+      window.location.reload();
+    });
+
+    // Sauvegarde périodique + au moment de quitter la page.
+    this.time.addEvent({ delay: 15000, loop: true, callback: () => this.autoSave() });
+    this._beforeUnloadHandler = () => this.autoSave();
+    window.addEventListener('beforeunload', this._beforeUnloadHandler);
+    this.events.on('shutdown', () => {
+      window.removeEventListener('beforeunload', this._beforeUnloadHandler);
+    });
+
     EventBus.emit('stats-updated', this.buildStatePayload());
+  }
+
+  autoSave() {
+    SaveSystem.save(this.player);
   }
 
   spawnEnemies() {
@@ -84,6 +111,7 @@ export class GameScene extends Phaser.Scene {
     this.playerIsDead = true;
     this.player.sprite.body.setVelocity(0, 0);
     EventBus.emit('loot-log', { type: 'kill', text: 'Tu es mort.' });
+    this.autoSave();
   }
 
   respawnPlayer() {
@@ -94,6 +122,7 @@ export class GameScene extends Phaser.Scene {
     this.player.hitFlashUntil = 0;
     EventBus.emit('loot-log', { type: 'pickup', text: 'Respawn effectué.' });
     EventBus.emit('stats-updated', this.buildStatePayload());
+    this.autoSave();
   }
 
   onHitEnemy(enemy, damage, isCrit) {
@@ -116,6 +145,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     EventBus.emit('stats-updated', this.buildStatePayload());
+    this.autoSave();
   }
 
   showDamagePopup(x, y, damage, isCrit) {
@@ -153,6 +183,7 @@ export class GameScene extends Phaser.Scene {
     nearby.sprite.destroy();
     this.lootDrops = this.lootDrops.filter((d) => d !== nearby);
     EventBus.emit('stats-updated', this.buildStatePayload());
+    this.autoSave();
   }
 
   buildStatePayload() {
