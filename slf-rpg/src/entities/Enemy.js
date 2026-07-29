@@ -120,11 +120,14 @@ export class Enemy {
   // s'affiche et grossit pendant ~1s avant l'impact. Le joueur doit en
   // sortir avant la fin, sinon il encaisse un gros coup.
   updateBossTelegraph(time, playerX, playerY, damagePlayer) {
+    const AGGRO_RANGE = 260; // le boss ne charge que si le joueur est dans cette portée
+
     if (!this.telegraphState) {
       if (this.nextTelegraphAt === null) {
         this.nextTelegraphAt = time + 2500; // délai avant la toute première charge
       }
-      if (time > this.nextTelegraphAt) {
+      const distToPlayer = Phaser.Math.Distance.Between(this.x, this.y, playerX, playerY);
+      if (time > this.nextTelegraphAt && distToPlayer <= AGGRO_RANGE) {
         this.telegraphState = {
           startTime: time,
           duration: 1100,
