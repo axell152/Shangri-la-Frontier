@@ -19,6 +19,7 @@ export class GameScene extends Phaser.Scene {
     this.add.grid(WORLD_W / 2, WORLD_H / 2, WORLD_W, WORLD_H, 40, 40, 0x14141f, 1, 0x1e1e2c, 1);
 
     this.enemies = [];
+    this.enemyGroup = this.physics.add.group();
     this.spawnEnemies();
 
     this.lootDrops = [];
@@ -27,7 +28,8 @@ export class GameScene extends Phaser.Scene {
     this.player = new Player(this, WORLD_W / 2, WORLD_H / 2);
     this.cameras.main.startFollow(this.player.sprite, true, 0.1, 0.1);
 
-    this.physics.add.overlap(this.player.sprite, this.enemies.map((e) => e.sprite), null, null, this);
+    this.physics.add.overlap(this.player.sprite, this.enemyGroup, (playerSprite, enemySprite) =>
+      this.handleEnemyContact(enemySprite), null, this);
 
     EventBus.on('equip-weapon', (weaponId) => {
       const weapon = this.player.weapons.equipFromInventory(weaponId);
@@ -49,9 +51,37 @@ export class GameScene extends Phaser.Scene {
       for (let i = 0; i < group.count; i++) {
         const x = Phaser.Math.Between(100, WORLD_W - 100);
         const y = Phaser.Math.Between(100, WORLD_H - 100);
-        this.enemies.push(new Enemy(this, x, y, group.type));
+        const enemy = new Enemy(this, x, y, group.type);
+        this.enemies.push(enemy);
+        this.enemyGroup.add(enemy.sprite);
       }
     }
+  }
+
+  handleEnemyContact(enemySprite) {
+    const enemy = this.enemies.find((e) => e.sprite === enemySprite);
+    if (!enemy || enemy.dead) return;
+    this.damagePlayer(enemy.atk);
+  }
+
+  // Point d'entrée unique pour tous les dégâts subis par le joueur
+  // (contact avec un ennemi, ou impact d'une charge de boss télégraphiée).
+  damagePlayer(amount) {
+    if (this.player.stats.hp <= 0) return;
+    const result = this.player.takeDamage(amount, this.time.now);
+    if (!result) return; // encore invulnérable, coup ignoré
+
+    EventBus.emit('player-hit', { damage: result.damage });
+    EventBus.emit('stats-updated', this.buildStatePayload());
+
+    if (result.died) this.handlePlayerDeath();
+  }
+
+  handlePlayerDeath() {
+    if (this.playerIsDead) return;
+    this.playerIsDead = true;
+    this.player.sprite.body.setVelocity(0, 0);
+    EventBus.emit('loot-log', { type: 'kill', text: 'Tu es mort — recharge la page pour recommencer.' });
   }
 
   onHitEnemy(enemy, damage, isCrit) {
@@ -67,6 +97,7 @@ export class GameScene extends Phaser.Scene {
       if (leveledUp) EventBus.emit('level-up', this.player.stats.level);
 
       this.time.delayedCall(1500, () => {
+        this.enemyGroup.remove(enemy.sprite, true, false);
         enemy.destroy();
         this.enemies = this.enemies.filter((e) => e !== enemy);
       });
@@ -128,9 +159,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(time) {
+    if (this.playerIsDead) return;
+
     this.player.update(time, this.enemies, (enemy, dmg, crit) => this.onHitEnemy(enemy, dmg, crit));
     for (const enemy of this.enemies) {
-      enemy.update(time, this.player.x, this.player.y);
+      enemy.update(time, this.player.x, this.player.y, (amount) => this.damagePlayer(amount));
     }
 
     // Gestion des flèches en vol
