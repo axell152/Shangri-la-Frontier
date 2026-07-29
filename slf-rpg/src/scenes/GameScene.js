@@ -193,6 +193,14 @@ export class GameScene extends Phaser.Scene {
       
       arrow.life--;
 
+      // Portée max de l'arme : au-delà, la flèche s'arrête même si son "life" n'est pas écoulé
+      const traveled = Phaser.Math.Distance.Between(arrow.startX, arrow.startY, arrow.x, arrow.y);
+      if (traveled >= arrow.maxRange) {
+        if (arrow.sprite) arrow.sprite.destroy();
+        this.arrows.splice(i, 1);
+        continue;
+      }
+
       // Collision avec les ennemis
       for (const enemy of this.enemies) {
         if (enemy.dead) continue;
@@ -218,7 +226,7 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  spawnArrow(x, y, angle, damage, isCrit, color) {
+  spawnArrow(x, y, angle, damage, isCrit, color, maxRange) {
     const speed = 12;
     const vx = Math.cos(angle) * speed;
     const vy = Math.sin(angle) * speed;
@@ -244,6 +252,9 @@ export class GameScene extends Phaser.Scene {
       sprite: gfx,
       x,
       y,
+      startX: x,
+      startY: y,
+      maxRange: maxRange || 200,
       vx,
       vy,
       damage,
