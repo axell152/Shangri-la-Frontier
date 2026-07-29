@@ -24,6 +24,7 @@ export class Player {
     this.sprite.body.setCollideWorldBounds(true);
 
     this.gfx = scene.add.graphics();
+    this.weaponGfx = scene.add.graphics();
 
     // Configuration des touches ZQSD
     this.wasd = scene.input.keyboard.addKeys({
@@ -35,10 +36,10 @@ export class Player {
 
     // Écoute du clic gauche de la souris pour attaquer
     scene.input.on('pointerdown', (pointer) => {
-      if (pointer.leftButtonDown()) {
-        this.tryAttack(scene.time.now, scene.enemiesRef || [], scene.onHitEnemyRef);
-      }
-    });
+  if (pointer.leftButtonDown()) {
+    this.tryAttack(scene.time.now, scene.enemiesRef || [], scene.onHitEnemyRef, pointer);
+  }
+});
   }
 
   get x() { return this.sprite.x; }
@@ -78,6 +79,7 @@ export class Player {
     }
 
     this.drawPlayerAndEffects();
+    this.drawWeapon();
   }
 
   drawPlayerAndEffects() {
@@ -110,48 +112,145 @@ export class Player {
     
     this.gfx.fillStyle(colorMask, 1);
     this.gfx.fillRect(px - 6, py - 22, 12, 10);
+  }
 
-    // Effet visuel d'attaque (Slash)
+  // Positionne et fait pivoter l'arme selon la direction du joueur,
+  // avec un swing pendant l'attaque. La forme elle-même est dessinée
+  // en coordonnées locales (pivot à l'origine, pointant vers +x)
+  // dans drawWeaponShape, puis tournée via la rotation de l'objet.
+  drawWeapon() {
+    const weapon = this.weapons.equipped;
+    this.weaponGfx.clear();
+    if (!weapon) return;
+
+    const facingAngles = {
+      right: 0,
+      down: Math.PI / 2,
+      left: Math.PI,
+      up: -Math.PI / 2
+    };
+    const baseAngle = facingAngles[this.facing] ?? 0;
+
+    // Swing des bras lorsque le joueur marche (même logique que dans drawPlayerAndEffects)
+    let armSwing = this.isMoving ? Math.sin(this.animFrame) * 6 : 0;
+
+    // Swing supplémentaire lors de l'attaque
+    let attackSwing = 0;
     if (this.isAttackingAnim) {
-      this.gfx.lineStyle(3, this.weapons.equipped.color, 1);
-      this.gfx.fillStyle(this.weapons.equipped.color, 0.4);
+      const progress = 1 - this.attackAnimTimer / 8;
+      attackSwing = -0.9 + Math.sin(progress * Math.PI) * 1.6;
+    }
 
-      let sx = px;
-      let sy = py;
-      let width = 24;
-      let height = 24;
+    // Position de base de la main + application du balancement du bras (armSwing)
+    let offsetX = 0;
+    let offsetY = -4;
 
-      if (this.facing === 'left') { sx -= 28; sy -= 10; }
-      else if (this.facing === 'right') { sx += 4; sy -= 10; }
-      else if (this.facing === 'up') { sx -= 12; sy -= 32; }
-      else if (this.facing === 'down') { sx -= 12; sy += 4; }
+    if (this.facing === 'right') {
+      offsetX = 18;
+      offsetY = -2 + armSwing; // Le bras monte et descend en marchant
+    } else if (this.facing === 'left') {
+      offsetX = -18;
+      offsetY = -2 - armSwing;
+    } else if (this.facing === 'down') {
+      offsetX = 6 + armSwing;  // Le bras avance et recule en marchant
+      offsetY = 12;
+    } else if (this.facing === 'up') {
+      offsetX = -6 - armSwing;
+      offsetY = -12;
+    }
 
-      this.gfx.strokeRect(sx, sy, width, height);
-      this.gfx.fillRect(sx, sy, width, height);
+    this.weaponGfx.setPosition(this.sprite.x + offsetX, this.sprite.y + offsetY);
+    this.weaponGfx.setRotation(baseAngle + attackSwing);
+
+    this.drawWeaponShape(weapon);
+  }
+
+  drawWeaponShape(weapon) {
+    const color = weapon.color;
+    const g = this.weaponGfx;
+
+    switch (weapon.kind) {
+      case 'sword':
+        g.fillStyle(0x3a2a1a, 1);
+        g.fillRect(-9, -3, 9, 6); // poignée
+        g.fillStyle(0x999999, 1);
+        g.fillRect(0, -7, 3, 14); // garde
+        g.fillStyle(color, 1);
+        g.fillRect(3, -2, 20, 4); // lame
+        break;
+
+      case 'dagger':
+        g.fillStyle(0x3a2a1a, 1);
+        g.fillRect(-6, -2, 6, 4); // poignée
+        g.fillStyle(color, 1);
+        g.fillTriangle(0, -3, 0, 3, 14, 0); // lame courte
+        break;
+
+      case 'spear':
+        g.fillStyle(0x5a4632, 1);
+        g.fillRect(-16, -2, 36, 3); // hampe
+        g.fillStyle(color, 1);
+        g.fillTriangle(20, -5, 20, 5, 33, 0); // pointe
+        break;
+
+      case 'axe':
+        g.fillStyle(0x5a4632, 1);
+        g.fillRect(-8, -2, 26, 3); // manche
+        g.fillStyle(color, 1);
+        g.fillTriangle(14, -11, 14, 11, 27, 0); // fer, côté avant
+        g.fillTriangle(14, -11, 14, 11, 4, 0); // fer, côté arrière
+        break;
+
+      case 'bow': {
+        const r = 14;
+        g.lineStyle(3, color, 1);
+        g.beginPath();
+        g.arc(0, 0, r, -1.0, 1.0, false);
+        g.strokePath();
+        g.lineStyle(1, 0xdddddd, 1);
+        g.lineBetween(r * Math.cos(-1.0), r * Math.sin(-1.0), r * Math.cos(1.0), r * Math.sin(1.0));
+        break;
+      }
+
+      default:
+        g.fillStyle(color, 1);
+        g.fillRect(0, -3, 14, 6);
     }
   }
 
-  tryAttack(time, enemies, onHitEnemy) {
+  tryAttack(time, enemies, onHitEnemy, pointer) {
     if (!enemies || time - this.lastAttackAt < this.weapons.attackCooldownMs) return;
     this.lastAttackAt = time;
 
-    this.isAttackingId = true;
     this.isAttackingAnim = true;
     this.attackAnimTimer = 8;
 
+    const isCrit = Math.random() < this.weapons.critChance;
+    const rawDamage = this.weapons.attackDamage + this.stats.totalAtk;
+    const damage = Math.max(1, Math.round(isCrit ? rawDamage * 1.8 : rawDamage));
+
+    // CORRECTION : On vérifie .kind et on s'assure qu'une arme est bien équipée
+    if (this.weapons.equipped && this.weapons.equipped.kind === 'bow' && pointer) {
+      const worldPoint = this.scene.cameras.main.getWorldPoint(pointer.x, pointer.y);
+      const angle = Phaser.Math.Angle.Between(this.x, this.y, worldPoint.x, worldPoint.y);
+      
+      if (this.scene.spawnArrow) {
+        this.scene.spawnArrow(this.x, this.y, angle, damage, isCrit, this.weapons.equipped.color);
+      }
+      return; // Empêche strictement le corps-à-corps de s'exécuter
+    }
+
+    // Sinon, comportement normal de Corps-à-Corps
     const range = this.weapons.attackRange;
     for (const enemy of enemies) {
       if (enemy.dead) continue;
       const dist = Phaser.Math.Distance.Between(this.x, this.y, enemy.x, enemy.y);
       if (dist <= range) {
-        const isCrit = Math.random() < this.weapons.critChance;
-        const rawDamage = this.weapons.attackDamage + this.stats.totalAtk - enemy.def;
-        const damage = Math.max(1, Math.round(isCrit ? rawDamage * 1.8 : rawDamage));
-        if (onHitEnemy) onHitEnemy(enemy, damage, isCrit);
+        const enemyDamage = Math.max(1, damage - enemy.def);
+        if (onHitEnemy) onHitEnemy(enemy, enemyDamage, isCrit);
       }
     }
   }
-
   equipWeapon(weapon) {
     this.weapons.equip(weapon);
   }

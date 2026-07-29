@@ -18,13 +18,14 @@ export class GameScene extends Phaser.Scene {
 
     this.add.grid(WORLD_W / 2, WORLD_H / 2, WORLD_W, WORLD_H, 40, 40, 0x14141f, 1, 0x1e1e2c, 1);
 
-    this.player = new Player(this, WORLD_W / 2, WORLD_H / 2);
-    this.cameras.main.startFollow(this.player.sprite, true, 0.1, 0.1);
-
     this.enemies = [];
     this.spawnEnemies();
 
     this.lootDrops = [];
+    this.arrows = [];
+
+    this.player = new Player(this, WORLD_W / 2, WORLD_H / 2);
+    this.cameras.main.startFollow(this.player.sprite, true, 0.1, 0.1);
 
     this.physics.add.overlap(this.player.sprite, this.enemies.map((e) => e.sprite), null, null, this);
 
@@ -132,8 +133,77 @@ export class GameScene extends Phaser.Scene {
       enemy.update(time, this.player.x, this.player.y);
     }
 
+    // Gestion des flèches en vol
+    for (let i = this.arrows.length - 1; i >= 0; i--) {
+      const arrow = this.arrows[i];
+      
+      // Utilisation directe d'une vitesse en pixels/frame (ex: 12 pixels par frame)
+      arrow.x += arrow.vx;
+      arrow.y += arrow.vy;
+      
+      // Mise à jour de la position visuelle
+      if (arrow.sprite && arrow.sprite.setActive) {
+        arrow.sprite.setPosition(arrow.x, arrow.y);
+      }
+      
+      arrow.life--;
+
+      // Collision avec les ennemis
+      for (const enemy of this.enemies) {
+        if (enemy.dead) continue;
+        const dist = Phaser.Math.Distance.Between(arrow.x, arrow.y, enemy.x, enemy.y);
+        if (dist < 18) {
+          const enemyDamage = Math.max(1, arrow.damage - enemy.def);
+          this.onHitEnemy(enemy, enemyDamage, arrow.isCrit);
+          arrow.sprite.destroy();
+          this.arrows.splice(i, 1);
+          break;
+        }
+      }
+
+      // Destruction si la flèche expire
+      if (arrow.life <= 0) {
+        if (arrow.sprite) arrow.sprite.destroy();
+        this.arrows.splice(i, 1);
+      }
+    }
+
     if (Phaser.Input.Keyboard.JustDown(this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E))) {
       this.tryPickupLoot();
     }
+  }
+
+  spawnArrow(x, y, angle, damage, isCrit, color) {
+    const speed = 12;
+    const vx = Math.cos(angle) * speed;
+    const vy = Math.sin(angle) * speed;
+
+    const gfx = this.add.graphics();
+    gfx.setPosition(x, y);
+    gfx.setRotation(angle);
+    gfx.setDepth(10); // Force la flèche à s'afficher au premier plan
+
+    // Hampe
+    gfx.fillStyle(0x8b5a2b, 1);
+    gfx.fillRect(-10, -1.5, 16, 3);
+    
+    // Pointe
+    gfx.fillStyle(color, 1);
+    gfx.fillTriangle(6, -4, 6, 4, 13, 0);
+
+    // Empennage
+    gfx.fillStyle(0xcccccc, 1);
+    gfx.fillTriangle(-10, -3, -10, 3, -14, 0);
+
+    this.arrows.push({
+      sprite: gfx,
+      x,
+      y,
+      vx,
+      vy,
+      damage,
+      isCrit,
+      life: 60
+    });
   }
 }
