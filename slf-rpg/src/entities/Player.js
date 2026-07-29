@@ -18,6 +18,10 @@ export class Player {
     this.isAttackingAnim = false;
     this.attackAnimTimer = 0;
 
+    // Dégâts subis : fenêtre d'invulnérabilité + flash visuel bref
+    this.invulnerableUntil = 0;
+    this.hitFlashUntil = 0;
+
     // Rectangle invisible pour la physique Phaser
     this.sprite = scene.add.rectangle(x, y, 26, 34, 0x000000, 0);
     scene.physics.add.existing(this.sprite);
@@ -88,9 +92,11 @@ export class Player {
     const py = this.sprite.y;
     let swing = this.isMoving ? Math.sin(this.animFrame) * 6 : 0;
 
-    const colorPants = 0x333333;
-    const colorShirt = 0x0055ff;
-    const colorSkin = 0xffdbac;
+    const isFlashing = this.scene.time.now < this.hitFlashUntil;
+
+    const colorPants = isFlashing ? 0xff3d5a : 0x333333;
+    const colorShirt = isFlashing ? 0xff3d5a : 0x0055ff;
+    const colorSkin = isFlashing ? 0xffb0b0 : 0xffdbac;
     const colorMask = 0xffffff;
 
     // Jambes
@@ -235,8 +241,8 @@ export class Player {
       const angle = Phaser.Math.Angle.Between(this.x, this.y, worldPoint.x, worldPoint.y);
       
       if (this.scene.spawnArrow) {
-        this.scene.spawnArrow(this.x, this.y, angle, damage, isCrit, this.weapons.equipped.color);
-      }
+  this.scene.spawnArrow(this.x, this.y, angle, damage, isCrit, this.weapons.equipped.color, this.weapons.equipped.range);
+}
       return; // Empêche strictement le corps-à-corps de s'exécuter
     }
 
@@ -251,6 +257,16 @@ export class Player {
       }
     }
   }
+  // Renvoie true si le coup est réellement encaissé (false si encore invulnérable).
+  takeDamage(amount, time) {
+    if (time < this.invulnerableUntil) return false;
+    const reduced = Math.max(1, Math.round(amount - this.stats.totalDef * 0.5));
+    const died = this.stats.takeDamage(reduced);
+    this.invulnerableUntil = time + 700; // ~0.7s d'invulnérabilité après un coup
+    this.hitFlashUntil = time + 180;
+    return { taken: true, damage: reduced, died };
+  }
+
   equipWeapon(weapon) {
     this.weapons.equip(weapon);
   }

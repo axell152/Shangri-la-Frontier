@@ -42,6 +42,7 @@ export const ENEMY_TYPES = {
     xp: 150,
     color: 0xff3d5a,
     size: 48,
-    lootTier: 'boss'
+    lootTier: 'boss',
+    isBoss: true
   }
 };
