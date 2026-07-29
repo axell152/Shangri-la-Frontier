@@ -36,6 +36,8 @@ export class GameScene extends Phaser.Scene {
       if (weapon) EventBus.emit('stats-updated', this.buildStatePayload());
     });
 
+    EventBus.on('respawn-request', () => this.respawnPlayer());
+
     EventBus.emit('stats-updated', this.buildStatePayload());
   }
 
@@ -81,7 +83,17 @@ export class GameScene extends Phaser.Scene {
     if (this.playerIsDead) return;
     this.playerIsDead = true;
     this.player.sprite.body.setVelocity(0, 0);
-    EventBus.emit('loot-log', { type: 'kill', text: 'Tu es mort — recharge la page pour recommencer.' });
+    EventBus.emit('loot-log', { type: 'kill', text: 'Tu es mort.' });
+  }
+
+  respawnPlayer() {
+    this.playerIsDead = false;
+    this.player.stats.hp = this.player.stats.maxHp;
+    this.player.sprite.setPosition(WORLD_W / 2, WORLD_H / 2);
+    this.player.invulnerableUntil = this.time.now + 1200; // petite fenêtre de sécurité au respawn
+    this.player.hitFlashUntil = 0;
+    EventBus.emit('loot-log', { type: 'pickup', text: 'Respawn effectué.' });
+    EventBus.emit('stats-updated', this.buildStatePayload());
   }
 
   onHitEnemy(enemy, damage, isCrit) {
