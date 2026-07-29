@@ -32,12 +32,20 @@ export class Enemy {
     this.wanderTarget = { x, y };
     this.nextWanderAt = 0;
     this.animFrame = 0;
+
+    // Pattern de boss : attaque en zone télégraphiée avant l'impact.
+    this.isBoss = !!def.isBoss;
+    this.telegraphState = null;
+    this.nextTelegraphAt = null;
+    if (this.isBoss) {
+      this.telegraphGfx = scene.add.graphics();
+    }
   }
 
   get x() { return this.sprite.x; }
   get y() { return this.sprite.y; }
 
-  update(time, playerX, playerY) {
+  update(time, playerX, playerY, damagePlayer) {
     if (this.dead) return;
 
     const distToPlayer = Phaser.Math.Distance.Between(this.x, this.y, playerX, playerY);
@@ -63,6 +71,10 @@ export class Enemy {
 
     // Redessiner le monstre cubique et sa barre de vie
     this.drawEnemyBlocks();
+
+    if (this.isBoss) {
+      this.updateBossTelegraph(time, playerX, playerY, damagePlayer);
+    }
 
     this.hpBarBg.x = this.x;
     this.hpBarBg.y = this.y - (this.defSize / 2 + 12);
@@ -104,6 +116,54 @@ export class Enemy {
     this.gfx.fillRect(px + 1, py - 18, 3, 3);
   }
 
+  // Pattern de boss "façon Shangri-La Frontier" : une zone de danger
+  // s'affiche et grossit pendant ~1s avant l'impact. Le joueur doit en
+  // sortir avant la fin, sinon il encaisse un gros coup.
+  updateBossTelegraph(time, playerX, playerY, damagePlayer) {
+    if (!this.telegraphState) {
+      if (this.nextTelegraphAt === null) {
+        this.nextTelegraphAt = time + 2500; // délai avant la toute première charge
+      }
+      if (time > this.nextTelegraphAt) {
+        this.telegraphState = {
+          startTime: time,
+          duration: 1100,
+          x: playerX, // la cible se verrouille sur la position du joueur au moment du cast
+          y: playerY,
+          maxRadius: 100
+        };
+      }
+      return;
+    }
+
+    const progress = Math.min(1, (time - this.telegraphState.startTime) / this.telegraphState.duration);
+    this.drawTelegraph(progress);
+
+    if (progress >= 1) {
+      const dist = Phaser.Math.Distance.Between(playerX, playerY, this.telegraphState.x, this.telegraphState.y);
+      if (dist <= this.telegraphState.maxRadius && damagePlayer) {
+        damagePlayer(this.atk * 2.2); // frappe lourde si le joueur n'a pas bougé à temps
+      }
+      this.telegraphGfx.clear();
+      this.telegraphState = null;
+      this.nextTelegraphAt = time + 2800; // cooldown avant la prochaine charge
+    }
+  }
+
+  drawTelegraph(progress) {
+    this.telegraphGfx.clear();
+    const state = this.telegraphState;
+    const r = state.maxRadius * progress;
+
+    // Disque qui se remplit progressivement (plus opaque = plus proche de l'impact)
+    this.telegraphGfx.fillStyle(0xff3d5a, 0.12 + progress * 0.33);
+    this.telegraphGfx.fillCircle(state.x, state.y, r);
+
+    // Contour de la zone finale, visible dès le début pour prévenir le joueur
+    this.telegraphGfx.lineStyle(2, 0xff0000, 0.9);
+    this.telegraphGfx.strokeCircle(state.x, state.y, state.maxRadius);
+  }
+
   takeDamage(amount) {
     this.hp = Math.max(0, this.hp - amount);
     if (this.hp <= 0 && !this.dead) {
@@ -113,6 +173,8 @@ export class Enemy {
       this.hpBar.setVisible(false);
       this.hpBarBg.setVisible(false);
       this.gfx.clear();
+      if (this.telegraphGfx) this.telegraphGfx.clear();
+      this.telegraphState = null;
       return true;
     }
     return false;
@@ -123,5 +185,6 @@ export class Enemy {
     this.hpBar.destroy();
     this.hpBarBg.destroy();
     this.gfx.destroy();
+    if (this.telegraphGfx) this.telegraphGfx.destroy();
   }
 }
