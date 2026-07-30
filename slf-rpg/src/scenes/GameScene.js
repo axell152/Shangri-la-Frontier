@@ -35,15 +35,19 @@ export class GameScene extends Phaser.Scene {
       EventBus.emit('loot-log', { type: 'pickup', text: 'Sauvegarde chargée.' });
     }
 
+    // Safe zone : seul endroit où sauvegarder, manuellement (touche F).
+    this.safeZone = { x: WORLD_W / 2, y: WORLD_H / 2, radius: 90 };
+    this.inSafeZone = false;
+    this.saveKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F);
+    this.safeZoneGfx = this.add.graphics();
+    this.drawSafeZone();
+
     this.physics.add.overlap(this.player.sprite, this.enemyGroup, (playerSprite, enemySprite) =>
       this.handleEnemyContact(enemySprite), null, this);
 
     EventBus.on('equip-weapon', (weaponId) => {
       const weapon = this.player.weapons.equipFromInventory(weaponId);
-      if (weapon) {
-        EventBus.emit('stats-updated', this.buildStatePayload());
-        this.autoSave();
-      }
+      if (weapon) EventBus.emit('stats-updated', this.buildStatePayload());
     });
 
     EventBus.on('respawn-request', () => this.respawnPlayer());
@@ -53,19 +57,34 @@ export class GameScene extends Phaser.Scene {
       window.location.reload();
     });
 
-    // Sauvegarde périodique + au moment de quitter la page.
-    this.time.addEvent({ delay: 15000, loop: true, callback: () => this.autoSave() });
-    this._beforeUnloadHandler = () => this.autoSave();
-    window.addEventListener('beforeunload', this._beforeUnloadHandler);
-    this.events.on('shutdown', () => {
-      window.removeEventListener('beforeunload', this._beforeUnloadHandler);
-    });
-
     EventBus.emit('stats-updated', this.buildStatePayload());
   }
 
-  autoSave() {
-    SaveSystem.save(this.player);
+  drawSafeZone() {
+    const g = this.safeZoneGfx;
+    const { x, y, radius } = this.safeZone;
+    g.clear();
+    g.fillStyle(0xffb200, 0.08);
+    g.fillCircle(x, y, radius);
+    g.lineStyle(2, 0xffb200, 0.6);
+    g.strokeCircle(x, y, radius);
+
+    // Petit feu de camp au centre, purement décoratif
+    g.fillStyle(0x5a4632, 1);
+    g.fillRect(x - 10, y + 6, 20, 4);
+    g.fillStyle(0xff8c00, 1);
+    g.fillTriangle(x - 7, y + 6, x + 7, y + 6, x, y - 10);
+    g.fillStyle(0xffd23d, 1);
+    g.fillTriangle(x - 3, y + 6, x + 3, y + 6, x, y - 3);
+  }
+
+  manualSave() {
+    const ok = SaveSystem.save(this.player);
+    EventBus.emit('loot-log', {
+      type: ok ? 'pickup' : 'kill',
+      text: ok ? 'Progression sauvegardée.' : 'Échec de la sauvegarde.'
+    });
+    if (ok) EventBus.emit('save-flash');
   }
 
   spawnEnemies() {
@@ -111,7 +130,6 @@ export class GameScene extends Phaser.Scene {
     this.playerIsDead = true;
     this.player.sprite.body.setVelocity(0, 0);
     EventBus.emit('loot-log', { type: 'kill', text: 'Tu es mort.' });
-    this.autoSave();
   }
 
   respawnPlayer() {
@@ -122,7 +140,6 @@ export class GameScene extends Phaser.Scene {
     this.player.hitFlashUntil = 0;
     EventBus.emit('loot-log', { type: 'pickup', text: 'Respawn effectué.' });
     EventBus.emit('stats-updated', this.buildStatePayload());
-    this.autoSave();
   }
 
   onHitEnemy(enemy, damage, isCrit) {
@@ -145,7 +162,6 @@ export class GameScene extends Phaser.Scene {
     }
 
     EventBus.emit('stats-updated', this.buildStatePayload());
-    this.autoSave();
   }
 
   showDamagePopup(x, y, damage, isCrit) {
@@ -183,7 +199,6 @@ export class GameScene extends Phaser.Scene {
     nearby.sprite.destroy();
     this.lootDrops = this.lootDrops.filter((d) => d !== nearby);
     EventBus.emit('stats-updated', this.buildStatePayload());
-    this.autoSave();
   }
 
   buildStatePayload() {
@@ -254,6 +269,17 @@ export class GameScene extends Phaser.Scene {
 
     if (Phaser.Input.Keyboard.JustDown(this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E))) {
       this.tryPickupLoot();
+    }
+
+    // Safe zone : détecte l'entrée/sortie et gère la sauvegarde manuelle (touche F)
+    const distToSafeZone = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.safeZone.x, this.safeZone.y);
+    const inZoneNow = distToSafeZone <= this.safeZone.radius;
+    if (inZoneNow !== this.inSafeZone) {
+      this.inSafeZone = inZoneNow;
+      EventBus.emit('safe-zone-status', this.inSafeZone);
+    }
+    if (this.inSafeZone && Phaser.Input.Keyboard.JustDown(this.saveKey)) {
+      this.manualSave();
     }
   }
 
