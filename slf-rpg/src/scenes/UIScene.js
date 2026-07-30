@@ -13,6 +13,8 @@ export class UIScene extends Phaser.Scene {
     EventBus.on('loot-log', (entry) => this.pushLog(entry));
     EventBus.on('level-up', (level) => this.pushLog({ type: 'levelup', text: `Niveau ${level} atteint !` }));
     EventBus.on('player-hit', () => this.flashHit());
+    EventBus.on('safe-zone-status', (inZone) => this.toggleSavePrompt(inZone));
+    EventBus.on('save-flash', () => this.flashSaveConfirmed());
   }
 
   buildDom() {
@@ -51,12 +53,20 @@ export class UIScene extends Phaser.Scene {
           border: none; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 13px;
           cursor: pointer; pointer-events: auto; letter-spacing: 1px; }
         #hud-respawn-btn:hover { background: #ff5d75; }
+        #hud-save-prompt { position: absolute; bottom: 44px; left: 50%; transform: translateX(-50%);
+          background: rgba(255,178,0,0.15); border: 1px solid #ffb200; color: #ffd23d;
+          padding: 6px 14px; border-radius: 4px; font-size: 12px; display: none; }
+        #hud-save-prompt.visible { display: block; }
+        #hud-save-prompt.confirmed { background: rgba(157,255,157,0.15); border-color: #9dff9d; color: #9dff9d; }
       </style>
       <div class="panel" id="hud-stats"></div>
       <div class="panel" id="hud-equip"></div>
       <div class="panel" id="hud-log"></div>
       <div class="panel" id="hud-inv"></div>
-      <div id="hud-hint">Z,Q,S,D: déplacer · Clic gauche: attaquer · E: ramasser</div>
+      <div id="hud-hint">Z,Q,S,D: déplacer · Clic gauche: attaquer · E: ramasser
+        · <span id="hud-reset-save" style="text-decoration: underline; cursor: pointer; pointer-events: auto;">réinitialiser la sauvegarde</span>
+      </div>
+      <div id="hud-save-prompt">Appuie sur F pour sauvegarder</div>
       <div id="hud-hitflash"></div>
       <div id="hud-gameover">
         TU ES MORT<br>
@@ -70,6 +80,12 @@ export class UIScene extends Phaser.Scene {
 
     this.dom.querySelector('#hud-respawn-btn').addEventListener('click', () => {
       EventBus.emit('respawn-request');
+    });
+
+    this.dom.querySelector('#hud-reset-save').addEventListener('click', () => {
+      if (confirm('Effacer ta sauvegarde et recommencer à zéro (niveau, inventaire, tout) ?')) {
+        EventBus.emit('reset-save-request');
+      }
     });
   }
 
@@ -128,6 +144,20 @@ export class UIScene extends Phaser.Scene {
     const el = this.dom.querySelector('#hud-hitflash');
     el.classList.add('active');
     setTimeout(() => el.classList.remove('active'), 150);
+  }
+
+  toggleSavePrompt(inZone) {
+    this.dom.querySelector('#hud-save-prompt').classList.toggle('visible', inZone);
+  }
+
+  flashSaveConfirmed() {
+    const el = this.dom.querySelector('#hud-save-prompt');
+    el.textContent = 'Sauvegardé !';
+    el.classList.add('confirmed');
+    setTimeout(() => {
+      el.textContent = 'Appuie sur F pour sauvegarder';
+      el.classList.remove('confirmed');
+    }, 1200);
   }
 
   hex(num) {
