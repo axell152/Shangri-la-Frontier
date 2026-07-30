@@ -19,6 +19,11 @@ export class GameScene extends Phaser.Scene {
 
     this.add.grid(WORLD_W / 2, WORLD_H / 2, WORLD_W, WORLD_H, 40, 40, 0x14141f, 1, 0x1e1e2c, 1);
 
+    // Safe zone : seul endroit où sauvegarder, manuellement (touche F).
+    // Définie avant le spawn des ennemis pour qu'ils l'évitent dès le départ.
+    this.safeZone = { x: WORLD_W / 2, y: WORLD_H / 2, radius: 90 };
+    this.inSafeZone = false;
+
     this.enemies = [];
     this.enemyGroup = this.physics.add.group();
     this.spawnEnemies();
@@ -35,9 +40,6 @@ export class GameScene extends Phaser.Scene {
       EventBus.emit('loot-log', { type: 'pickup', text: 'Sauvegarde chargée.' });
     }
 
-    // Safe zone : seul endroit où sauvegarder, manuellement (touche F).
-    this.safeZone = { x: WORLD_W / 2, y: WORLD_H / 2, radius: 90 };
-    this.inSafeZone = false;
     this.saveKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F);
     this.safeZoneGfx = this.add.graphics();
     this.drawSafeZone();
@@ -97,8 +99,12 @@ export class GameScene extends Phaser.Scene {
 
     for (const group of layout) {
       for (let i = 0; i < group.count; i++) {
-        const x = Phaser.Math.Between(100, WORLD_W - 100);
-        const y = Phaser.Math.Between(100, WORLD_H - 100);
+        let x, y;
+        do {
+          x = Phaser.Math.Between(100, WORLD_W - 100);
+          y = Phaser.Math.Between(100, WORLD_H - 100);
+        } while (Phaser.Math.Distance.Between(x, y, this.safeZone.x, this.safeZone.y) < this.safeZone.radius + 40);
+
         const enemy = new Enemy(this, x, y, group.type);
         this.enemies.push(enemy);
         this.enemyGroup.add(enemy.sprite);
@@ -222,6 +228,20 @@ export class GameScene extends Phaser.Scene {
     this.player.update(time, this.enemies, (enemy, dmg, crit) => this.onHitEnemy(enemy, dmg, crit));
     for (const enemy of this.enemies) {
       enemy.update(time, this.player.x, this.player.y, (amount) => this.damagePlayer(amount));
+    }
+
+    // Barrière invisible : aucun ennemi ne peut entrer dans la safe zone
+    for (const enemy of this.enemies) {
+      if (enemy.dead) continue;
+      const distToZone = Phaser.Math.Distance.Between(enemy.x, enemy.y, this.safeZone.x, this.safeZone.y);
+      if (distToZone < this.safeZone.radius) {
+        const angle = Phaser.Math.Angle.Between(this.safeZone.x, this.safeZone.y, enemy.x, enemy.y);
+        enemy.sprite.setPosition(
+          this.safeZone.x + Math.cos(angle) * this.safeZone.radius,
+          this.safeZone.y + Math.sin(angle) * this.safeZone.radius
+        );
+        enemy.sprite.body.setVelocity(0, 0);
+      }
     }
 
     // Gestion des flèches en vol
