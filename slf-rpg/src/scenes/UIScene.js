@@ -107,20 +107,29 @@ export class UIScene extends Phaser.Scene {
 
     const equipEl = this.dom.querySelector('#hud-equip');
     const w = state.equipped;
-    equipEl.innerHTML = w ? `
-      <div style="font-size: 11px; color: #aaa; margin-bottom: 2px;">Arme équipée</div>
-      <div class="rarity" style="color:${this.hex(w.color)}">${w.rarityLabel} ${w.name}</div>
-      <div style="font-size: 11px; margin-top: 4px;">ATK ${w.atk} · Vit ${w.speed} · Crit ${(w.crit * 100).toFixed(0)}%</div>
-    ` : '<div>Aucune arme</div>';
+    if (w) {
+      const durabilityText = isFinite(w.durability) ? `${w.durability}/${w.maxDurability}` : '∞';
+      const durabilityPct = isFinite(w.durability) ? Math.max(0, (w.durability / w.maxDurability) * 100) : 100;
+      const durabilityColor = durabilityPct > 40 ? '#9dff9d' : durabilityPct > 15 ? '#ffd23d' : '#ff3d5a';
+      equipEl.innerHTML = `
+        <div style="font-size: 11px; color: #aaa; margin-bottom: 2px;">Arme équipée</div>
+        <div class="rarity" style="color:${this.hex(w.color)}">${w.rarityLabel} ${w.name}</div>
+        <div style="font-size: 11px; margin-top: 4px;">ATK ${w.atk} · Portée ${w.range} · Crit ${(w.crit * 100).toFixed(0)}%</div>
+        <div style="font-size: 11px; color:${durabilityColor}; margin-top: 2px;">Durabilité : ${durabilityText}</div>
+      `;
+    } else {
+      equipEl.innerHTML = '<div>Aucune arme</div>';
+    }
 
     const invEl = this.dom.querySelector('#hud-inv');
     invEl.innerHTML = `<div style="font-weight: bold; color: #ffb200; margin-bottom:6px; border-bottom:1px solid #333; padding-bottom:4px;">Inventaire d'armes (${state.inventory.length})</div>` +
       state.inventory.map((weapon) => {
         const isEquipped = state.equipped && state.equipped.id === weapon.id;
+        const durabilityShort = isFinite(weapon.durability) ? `${weapon.durability}/${weapon.maxDurability}` : '∞';
         return `
           <div class="item" data-id="${weapon.id}" style="border-color: ${isEquipped ? '#ff3d5a' : '#444'}; background: ${isEquipped ? 'rgba(255, 61, 90, 0.15)' : 'transparent'};">
             <span style="color:${this.hex(weapon.color)}">[${weapon.rarityLabel}] ${weapon.name}</span>
-            ${isEquipped ? '<span style="font-size: 10px; color:#ff3d5a;">Équipé</span>' : ''}
+            <span style="font-size: 10px; color: #999;">${durabilityShort}${isEquipped ? ' · <span style="color:#ff3d5a;">Équipé</span>' : ''}</span>
           </div>
         `;
       }).join('');

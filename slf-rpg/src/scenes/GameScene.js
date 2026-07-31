@@ -29,7 +29,7 @@ export class GameScene extends Phaser.Scene {
     this.spawnEnemies();
 
     this.lootDrops = [];
-    this.arrows = [];
+    this.projectiles = [];
 
     this.player = new Player(this, WORLD_W / 2, WORLD_H / 2);
     this.cameras.main.startFollow(this.player.sprite, true, 0.1, 0.1);
@@ -59,6 +59,10 @@ export class GameScene extends Phaser.Scene {
       window.location.reload();
     });
 
+    EventBus.emit('stats-updated', this.buildStatePayload());
+  }
+
+  emitStatsUpdate() {
     EventBus.emit('stats-updated', this.buildStatePayload());
   }
 
@@ -142,7 +146,7 @@ export class GameScene extends Phaser.Scene {
     this.playerIsDead = false;
     this.player.stats.hp = this.player.stats.maxHp;
     this.player.sprite.setPosition(WORLD_W / 2, WORLD_H / 2);
-    this.player.invulnerableUntil = this.time.now + 1200; // petite fenêtre de sécurité au respawn
+    this.player.invulnerableUntil = this.time.now + 1200;
     this.player.hitFlashUntil = 0;
     EventBus.emit('loot-log', { type: 'pickup', text: 'Respawn effectué.' });
     EventBus.emit('stats-updated', this.buildStatePayload());
@@ -244,46 +248,39 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    // Gestion des flèches en vol
-    for (let i = this.arrows.length - 1; i >= 0; i--) {
-      const arrow = this.arrows[i];
-      
-      // Utilisation directe d'une vitesse en pixels/frame (ex: 12 pixels par frame)
-      arrow.x += arrow.vx;
-      arrow.y += arrow.vy;
-      
-      // Mise à jour de la position visuelle
-      if (arrow.sprite && arrow.sprite.setActive) {
-        arrow.sprite.setPosition(arrow.x, arrow.y);
-      }
-      
-      arrow.life--;
+    // Gestion des projectiles en vol (arc, bâton, arme futuriste...)
+    for (let i = this.projectiles.length - 1; i >= 0; i--) {
+      const proj = this.projectiles[i];
+      proj.x += proj.vx;
+      proj.y += proj.vy;
+      if (proj.sprite && proj.sprite.setPosition) proj.sprite.setPosition(proj.x, proj.y);
+      proj.life--;
 
-      // Portée max de l'arme : au-delà, la flèche s'arrête même si son "life" n'est pas écoulé
-      const traveled = Phaser.Math.Distance.Between(arrow.startX, arrow.startY, arrow.x, arrow.y);
-      if (traveled >= arrow.maxRange) {
-        if (arrow.sprite) arrow.sprite.destroy();
-        this.arrows.splice(i, 1);
+      const traveled = Phaser.Math.Distance.Between(proj.startX, proj.startY, proj.x, proj.y);
+      if (traveled >= proj.maxRange) {
+        if (proj.sprite) proj.sprite.destroy();
+        this.projectiles.splice(i, 1);
         continue;
       }
 
-      // Collision avec les ennemis
+      let hit = false;
       for (const enemy of this.enemies) {
         if (enemy.dead) continue;
-        const dist = Phaser.Math.Distance.Between(arrow.x, arrow.y, enemy.x, enemy.y);
+        const dist = Phaser.Math.Distance.Between(proj.x, proj.y, enemy.x, enemy.y);
         if (dist < 18) {
-          const enemyDamage = Math.max(1, arrow.damage - enemy.def);
-          this.onHitEnemy(enemy, enemyDamage, arrow.isCrit);
-          arrow.sprite.destroy();
-          this.arrows.splice(i, 1);
+          const enemyDamage = Math.max(1, proj.damage - enemy.def);
+          this.onHitEnemy(enemy, enemyDamage, proj.isCrit);
+          if (proj.sprite) proj.sprite.destroy();
+          this.projectiles.splice(i, 1);
+          hit = true;
           break;
         }
       }
+      if (hit) continue;
 
-      // Destruction si la flèche expire
-      if (arrow.life <= 0) {
-        if (arrow.sprite) arrow.sprite.destroy();
-        this.arrows.splice(i, 1);
+      if (proj.life <= 0) {
+        if (proj.sprite) proj.sprite.destroy();
+        this.projectiles.splice(i, 1);
       }
     }
 
@@ -303,7 +300,10 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  spawnArrow(x, y, angle, damage, isCrit, color, maxRange) {
+  // Tir générique : le visuel change selon le "kind" de l'arme (flèche pour
+  // un arc, bille magique pour un bâton, projectile à énergie pour une arme
+  // futuriste). Toute arme "ranged" future n'a qu'à ajouter un cas ici.
+  spawnProjectile(x, y, angle, damage, isCrit, color, maxRange, kind) {
     const speed = 12;
     const vx = Math.cos(angle) * speed;
     const vy = Math.sin(angle) * speed;
@@ -311,21 +311,35 @@ export class GameScene extends Phaser.Scene {
     const gfx = this.add.graphics();
     gfx.setPosition(x, y);
     gfx.setRotation(angle);
-    gfx.setDepth(10); // Force la flèche à s'afficher au premier plan
+    gfx.setDepth(10);
 
-    // Hampe
-    gfx.fillStyle(0x8b5a2b, 1);
-    gfx.fillRect(-10, -1.5, 16, 3);
-    
-    // Pointe
-    gfx.fillStyle(color, 1);
-    gfx.fillTriangle(6, -4, 6, 4, 13, 0);
+    if (kind === 'staff') {
+      // Bille d'énergie avec un léger halo
+      gfx.fillStyle(color, 0.25);
+      gfx.fillCircle(0, 0, 8);
+      gfx.fillStyle(color, 1);
+      gfx.fillCircle(0, 0, 4);
+      gfx.fillStyle(0xffffff, 0.8);
+      gfx.fillCircle(-1, -1, 1.5);
+    } else if (kind === 'gun') {
+      // Projectile à énergie allongé
+      gfx.fillStyle(color, 0.3);
+      gfx.fillRect(-8, -3, 16, 6);
+      gfx.fillStyle(color, 1);
+      gfx.fillRect(-6, -1.5, 12, 3);
+      gfx.fillStyle(0xffffff, 0.9);
+      gfx.fillRect(4, -1, 4, 2);
+    } else {
+      // Flèche (par défaut, notamment pour "bow")
+      gfx.fillStyle(0x8b5a2b, 1);
+      gfx.fillRect(-10, -1.5, 16, 3);
+      gfx.fillStyle(color, 1);
+      gfx.fillTriangle(6, -4, 6, 4, 13, 0);
+      gfx.fillStyle(0xcccccc, 1);
+      gfx.fillTriangle(-10, -3, -10, 3, -14, 0);
+    }
 
-    // Empennage
-    gfx.fillStyle(0xcccccc, 1);
-    gfx.fillTriangle(-10, -3, -10, 3, -14, 0);
-
-    this.arrows.push({
+    this.projectiles.push({
       sprite: gfx,
       x,
       y,
@@ -336,7 +350,7 @@ export class GameScene extends Phaser.Scene {
       vy,
       damage,
       isCrit,
-      life: 60
+      life: 90
     });
   }
 }

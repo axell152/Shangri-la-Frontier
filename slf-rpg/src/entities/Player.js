@@ -1,6 +1,9 @@
 import Phaser from 'phaser';
 import { StatsSystem } from '../systems/StatsSystem.js';
 import { WeaponSystem } from '../systems/WeaponSystem.js';
+import { RARITY_ORDER } from '../data/rarity.js';
+import { mulberry32 } from '../utils/rng.js';
+import { EventBus } from '../EventBus.js';
 
 const MOVE_SPEED = 160;
 
@@ -14,7 +17,7 @@ export class Player {
 
     this.animFrame = 0;
     this.isMoving = false;
-    
+
     this.isAttackingAnim = false;
     this.attackAnimTimer = 0;
 
@@ -40,10 +43,10 @@ export class Player {
 
     // Écoute du clic gauche de la souris pour attaquer
     scene.input.on('pointerdown', (pointer) => {
-  if (pointer.leftButtonDown()) {
-    this.tryAttack(scene.time.now, scene.enemiesRef || [], scene.onHitEnemyRef, pointer);
-  }
-});
+      if (pointer.leftButtonDown()) {
+        this.tryAttack(scene.time.now, scene.enemiesRef || [], scene.onHitEnemyRef, pointer);
+      }
+    });
   }
 
   get x() { return this.sprite.x; }
@@ -115,7 +118,7 @@ export class Player {
     // Tête & Masque
     this.gfx.fillStyle(colorSkin, 1);
     this.gfx.fillRect(px - 10, py - 26, 20, 16);
-    
+
     this.gfx.fillStyle(colorMask, 1);
     this.gfx.fillRect(px - 6, py - 22, 12, 10);
   }
@@ -137,28 +140,25 @@ export class Player {
     };
     const baseAngle = facingAngles[this.facing] ?? 0;
 
-    // Swing des bras lorsque le joueur marche (même logique que dans drawPlayerAndEffects)
     let armSwing = this.isMoving ? Math.sin(this.animFrame) * 6 : 0;
 
-    // Swing supplémentaire lors de l'attaque
     let attackSwing = 0;
     if (this.isAttackingAnim) {
       const progress = 1 - this.attackAnimTimer / 8;
       attackSwing = -0.9 + Math.sin(progress * Math.PI) * 1.6;
     }
 
-    // Position de base de la main + application du balancement du bras (armSwing)
     let offsetX = 0;
     let offsetY = -4;
 
     if (this.facing === 'right') {
       offsetX = 18;
-      offsetY = -2 + armSwing; // Le bras monte et descend en marchant
+      offsetY = -2 + armSwing;
     } else if (this.facing === 'left') {
       offsetX = -18;
       offsetY = -2 - armSwing;
     } else if (this.facing === 'down') {
-      offsetX = 6 + armSwing;  // Le bras avance et recule en marchant
+      offsetX = 6 + armSwing;
       offsetY = 12;
     } else if (this.facing === 'up') {
       offsetX = -6 - armSwing;
@@ -171,44 +171,51 @@ export class Player {
     this.drawWeaponShape(weapon);
   }
 
+  // Dessine la silhouette de l'arme (selon sa catégorie), avec une
+  // variation de dimensions propre à CHAQUE arme (dérivée de son nom via
+  // visualSeed), puis une ornementation qui s'enrichit avec la rareté
+  // (contour dès Rare, halo dès Épique, particules dès Légendaire).
   drawWeaponShape(weapon) {
     const color = weapon.color;
     const g = this.weaponGfx;
+    const rand = mulberry32(weapon.visualSeed);
+    const lengthJitter = 0.85 + rand() * 0.3;
+    const widthJitter = 0.85 + rand() * 0.3;
 
     switch (weapon.kind) {
       case 'sword':
         g.fillStyle(0x3a2a1a, 1);
-        g.fillRect(-9, -3, 9, 6); // poignée
+        g.fillRect(-9, -3, 9, 6);
         g.fillStyle(0x999999, 1);
-        g.fillRect(0, -7, 3, 14); // garde
+        g.fillRect(0, -7, 3, 14);
         g.fillStyle(color, 1);
-        g.fillRect(3, -2, 20, 4); // lame
+        g.fillRect(3, -2 * widthJitter, 20 * lengthJitter, 4 * widthJitter);
         break;
 
       case 'dagger':
         g.fillStyle(0x3a2a1a, 1);
-        g.fillRect(-6, -2, 6, 4); // poignée
+        g.fillRect(-6, -2, 6, 4);
         g.fillStyle(color, 1);
-        g.fillTriangle(0, -3, 0, 3, 14, 0); // lame courte
+        g.fillTriangle(0, -3 * widthJitter, 0, 3 * widthJitter, 14 * lengthJitter, 0);
         break;
 
       case 'spear':
         g.fillStyle(0x5a4632, 1);
-        g.fillRect(-16, -2, 36, 3); // hampe
+        g.fillRect(-16, -2, 36 * lengthJitter, 3);
         g.fillStyle(color, 1);
-        g.fillTriangle(20, -5, 20, 5, 33, 0); // pointe
+        g.fillTriangle(20 * lengthJitter, -5 * widthJitter, 20 * lengthJitter, 5 * widthJitter, 33 * lengthJitter, 0);
         break;
 
       case 'axe':
         g.fillStyle(0x5a4632, 1);
-        g.fillRect(-8, -2, 26, 3); // manche
+        g.fillRect(-8, -2, 26, 3);
         g.fillStyle(color, 1);
-        g.fillTriangle(14, -11, 14, 11, 27, 0); // fer, côté avant
-        g.fillTriangle(14, -11, 14, 11, 4, 0); // fer, côté arrière
+        g.fillTriangle(14, -11 * widthJitter, 14, 11 * widthJitter, 27 * lengthJitter, 0);
+        g.fillTriangle(14, -11 * widthJitter, 14, 11 * widthJitter, 4, 0);
         break;
 
       case 'bow': {
-        const r = 14;
+        const r = 14 * widthJitter;
         g.lineStyle(3, color, 1);
         g.beginPath();
         g.arc(0, 0, r, -1.0, 1.0, false);
@@ -218,9 +225,103 @@ export class Player {
         break;
       }
 
+      case 'staff': {
+        const len = 26 * lengthJitter;
+        g.fillStyle(0x5a4632, 1);
+        g.fillRect(-4, -2, len, 4);
+        g.fillStyle(color, 0.95);
+        g.fillCircle(len, 0, 6 * widthJitter);
+        g.lineStyle(1, 0xffffff, 0.7);
+        g.strokeCircle(len, 0, 6 * widthJitter);
+        break;
+      }
+
+      case 'hammer': {
+        const len = 20 * lengthJitter;
+        g.fillStyle(0x5a4632, 1);
+        g.fillRect(-10, -2, len, 4);
+        g.fillStyle(color, 1);
+        g.fillRect(len - 6, -9 * widthJitter, 16, 18 * widthJitter);
+        break;
+      }
+
+      case 'katana': {
+        const len = 24 * lengthJitter;
+        g.fillStyle(0x1a1a1a, 1);
+        g.fillRect(-8, -2, 8, 4);
+        g.fillStyle(0x999999, 1);
+        g.fillRect(0, -5, 2, 10);
+        g.fillStyle(color, 1);
+        g.fillRect(2, -1.5 * widthJitter, len, 3 * widthJitter);
+        g.fillTriangle(2 + len, -1.5 * widthJitter, 2 + len, 1.5 * widthJitter, 2 + len + 6, 0);
+        break;
+      }
+
+      case 'claw': {
+        const len = 14 * lengthJitter;
+        g.fillStyle(0x3a2a1a, 1);
+        g.fillRect(-6, -4, 6, 8);
+        g.fillStyle(color, 1);
+        g.fillTriangle(0, -5, 0, -1, len, -7 * widthJitter);
+        g.fillTriangle(0, -2, 0, 2, len + 1, 0);
+        g.fillTriangle(0, 1, 0, 5, len, 7 * widthJitter);
+        break;
+      }
+
+      case 'gun': {
+        const len = 20 * lengthJitter;
+        g.fillStyle(0x333340, 1);
+        g.fillRect(-8, -4 * widthJitter, len, 8 * widthJitter);
+        g.fillStyle(0x1a1a22, 1);
+        g.fillRect(len - 8, -2, 10, 4);
+        g.fillStyle(color, 1);
+        g.fillRect(-6, -1, len - 4, 2);
+        break;
+      }
+
+      case 'fists':
+        g.fillStyle(0xffdbac, 1);
+        g.fillRect(-4, -4, 10, 8);
+        break;
+
       default:
         g.fillStyle(color, 1);
         g.fillRect(0, -3, 14, 6);
+    }
+
+    this.drawTierOrnament(weapon, g);
+  }
+
+  drawTierOrnament(weapon, g) {
+    const tierIndex = RARITY_ORDER.indexOf(weapon.tierKey);
+    if (tierIndex < 2) return; // Commune / Peu Commune : pas d'ornement
+
+    const time = this.scene.time.now;
+    const seed = weapon.visualSeed % 1000;
+    const pulse = 0.5 + 0.5 * Math.sin(time / 300 + seed);
+    const cx = 6;
+
+    // Contour dès Rare
+    g.lineStyle(1.5, weapon.color, 0.45 + tierIndex * 0.05);
+    g.strokeCircle(cx, 0, 14 + tierIndex * 1.5);
+
+    // Halo dès Épique
+    if (tierIndex >= 3) {
+      g.fillStyle(weapon.color, 0.07 + 0.05 * pulse);
+      g.fillCircle(cx, 0, 16 + tierIndex * 2);
+    }
+
+    // Particules dès Légendaire (plus nombreuses pour Mythique/Relique Divine)
+    if (tierIndex >= 4) {
+      const sparkleCount = tierIndex >= 5 ? 5 : 3;
+      for (let i = 0; i < sparkleCount; i++) {
+        const a = (i / sparkleCount) * Math.PI * 2 + time / 500 + seed;
+        const r = 16 + tierIndex * 1.5;
+        const sx = cx + Math.cos(a) * r;
+        const sy = Math.sin(a) * r;
+        g.fillStyle(0xffffff, 0.6 + 0.4 * pulse);
+        g.fillCircle(sx, sy, 1.4);
+      }
     }
   }
 
@@ -231,40 +332,44 @@ export class Player {
     this.isAttackingAnim = true;
     this.attackAnimTimer = 8;
 
+    const weapon = this.weapons.equipped;
     const isCrit = Math.random() < this.weapons.critChance;
     const rawDamage = this.weapons.attackDamage + this.stats.totalAtk;
     const damage = Math.max(1, Math.round(isCrit ? rawDamage * 1.8 : rawDamage));
 
-    // CORRECTION : On vérifie .kind et on s'assure qu'une arme est bien équipée
-    if (this.weapons.equipped && this.weapons.equipped.kind === 'bow' && pointer) {
+    let executed = false;
+
+    if (weapon && weapon.ranged && pointer) {
       const worldPoint = this.scene.cameras.main.getWorldPoint(pointer.x, pointer.y);
       const angle = Phaser.Math.Angle.Between(this.x, this.y, worldPoint.x, worldPoint.y);
-      
-      if (this.scene.spawnArrow) {
-  this.scene.spawnArrow(this.x, this.y, angle, damage, isCrit, this.weapons.equipped.color, this.weapons.equipped.range);
-}
-      return; // Empêche strictement le corps-à-corps de s'exécuter
+
+      if (this.scene.spawnProjectile) {
+        this.scene.spawnProjectile(this.x, this.y, angle, damage, isCrit, weapon.color, weapon.range, weapon.kind);
+        executed = true;
+      }
+    } else if (!weapon || !weapon.ranged) {
+      const range = this.weapons.attackRange;
+      for (const enemy of enemies) {
+        if (enemy.dead) continue;
+        const dist = Phaser.Math.Distance.Between(this.x, this.y, enemy.x, enemy.y);
+        if (dist <= range) {
+          const enemyDamage = Math.max(1, damage - enemy.def);
+          if (onHitEnemy) onHitEnemy(enemy, enemyDamage, isCrit);
+        }
+      }
+      executed = true;
     }
 
-    // Sinon, comportement normal de Corps-à-Corps
-    const range = this.weapons.attackRange;
-    for (const enemy of enemies) {
-      if (enemy.dead) continue;
-      const dist = Phaser.Math.Distance.Between(this.x, this.y, enemy.x, enemy.y);
-      if (dist <= range) {
-        const enemyDamage = Math.max(1, damage - enemy.def);
-        if (onHitEnemy) onHitEnemy(enemy, enemyDamage, isCrit);
+    if (executed) {
+      const result = this.weapons.registerAttackUse();
+      if (this.scene.emitStatsUpdate) this.scene.emitStatsUpdate();
+      if (result.broke) {
+        EventBus.emit('loot-log', {
+          type: 'kill',
+          text: `${result.brokenName} s'est brisée ! Équipé désormais : ${result.newEquippedName}.`
+        });
       }
     }
-  }
-  // Renvoie true si le coup est réellement encaissé (false si encore invulnérable).
-  takeDamage(amount, time) {
-    if (time < this.invulnerableUntil) return false;
-    const reduced = Math.max(1, Math.round(amount - this.stats.totalDef * 0.5));
-    const died = this.stats.takeDamage(reduced);
-    this.invulnerableUntil = time + 700; // ~0.7s d'invulnérabilité après un coup
-    this.hitFlashUntil = time + 180;
-    return { taken: true, damage: reduced, died };
   }
 
   equipWeapon(weapon) {
