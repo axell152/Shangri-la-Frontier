@@ -1,6 +1,6 @@
 import { WEAPON_CATEGORIES } from './weaponCategories.js';
 import { WEAPON_CATALOG } from './weaponCatalog.js';
-import { RARITY_TIERS } from './rarity.js';
+import { RARITY_TIERS, RARITY_ORDER } from './rarity.js';
 import { seededRandom, seedFromString, lerp } from '../utils/rng.js';
 
 let instanceCounter = 0;
@@ -80,6 +80,30 @@ export function createRandomWeaponForTier(tierKey) {
   if (pool.length === 0) return null;
   const pick = pool[Math.floor(Math.random() * pool.length)];
   return createWeaponFromEntry(pick.category, pick.entry);
+}
+
+// Renvoie le prochain palier de rareté qui contient effectivement des
+// entrées pour cette catégorie (certaines catégories, comme les armes
+// futuristes, sautent un palier — voir weaponCatalog.js).
+export function getNextTierForCategory(category, fromTierKey) {
+  const startIndex = RARITY_ORDER.indexOf(fromTierKey);
+  for (let i = startIndex + 1; i < RARITY_ORDER.length; i++) {
+    const tierKey = RARITY_ORDER[i];
+    const hasEntry = WEAPON_CATALOG[category]?.some((e) => e.tier === tierKey);
+    if (hasEntry) return tierKey;
+  }
+  return null; // déjà au palier maximum pour cette catégorie
+}
+
+// Utilisé par la fusion chez le marchand : 3 armes identiques + de l'argent
+// → une arme de la même catégorie, au palier de rareté suivant, choisie
+// au hasard parmi celles disponibles à ce palier (comme un drop de loot).
+export function createUpgradeWeapon(category, fromTierKey) {
+  const nextTier = getNextTierForCategory(category, fromTierKey);
+  if (!nextTier) return null;
+  const pool = WEAPON_CATALOG[category].filter((e) => e.tier === nextTier);
+  const pick = pool[Math.floor(Math.random() * pool.length)];
+  return createWeaponFromEntry(category, pick);
 }
 
 // Arme de secours indestructible : équipée automatiquement si l'arme en
