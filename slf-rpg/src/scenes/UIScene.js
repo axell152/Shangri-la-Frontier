@@ -64,7 +64,8 @@ export class UIScene extends Phaser.Scene {
         /* Modales (inventaire / marchand) */
         .hud-modal { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
           width: 460px; max-width: 90vw; max-height: 70vh; overflow-y: auto; display: none;
-          background: rgba(8,8,14,0.97); border: 1px solid #444; border-radius: 8px; padding: 16px; }
+          background: rgba(8,8,14,0.97); border: 1px solid #444; border-radius: 8px; padding: 16px;
+          pointer-events: auto; }
         .hud-modal.open { display: block; }
         .hud-modal h3 { margin: 0 0 10px 0; font-size: 14px; color: #ffb200; display: flex; justify-content: space-between; }
         .hud-modal .close-hint { font-size: 10px; color: #888; font-weight: normal; }
