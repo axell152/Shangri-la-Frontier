@@ -93,6 +93,22 @@ export class GameScene extends Phaser.Scene {
     if (ok) EventBus.emit('save-flash');
   }
 
+  randomSpawnPosition() {
+    let x, y;
+    do {
+      x = Phaser.Math.Between(100, WORLD_W - 100);
+      y = Phaser.Math.Between(100, WORLD_H - 100);
+    } while (Phaser.Math.Distance.Between(x, y, this.safeZone.x, this.safeZone.y) < this.safeZone.radius + 40);
+    return { x, y };
+  }
+
+  spawnSingleEnemy(typeKey, x, y) {
+    const enemy = new Enemy(this, x, y, typeKey);
+    this.enemies.push(enemy);
+    this.enemyGroup.add(enemy.sprite);
+    return enemy;
+  }
+
   spawnEnemies() {
     const layout = [
       { type: 'slime', count: 5 },
@@ -103,15 +119,8 @@ export class GameScene extends Phaser.Scene {
 
     for (const group of layout) {
       for (let i = 0; i < group.count; i++) {
-        let x, y;
-        do {
-          x = Phaser.Math.Between(100, WORLD_W - 100);
-          y = Phaser.Math.Between(100, WORLD_H - 100);
-        } while (Phaser.Math.Distance.Between(x, y, this.safeZone.x, this.safeZone.y) < this.safeZone.radius + 40);
-
-        const enemy = new Enemy(this, x, y, group.type);
-        this.enemies.push(enemy);
-        this.enemyGroup.add(enemy.sprite);
+        const { x, y } = this.randomSpawnPosition();
+        this.spawnSingleEnemy(group.type, x, y);
       }
     }
   }
@@ -164,10 +173,22 @@ export class GameScene extends Phaser.Scene {
       EventBus.emit('loot-log', { type: 'kill', text: `${enemy.typeKey} vaincu (+${enemy.xp} XP)` });
       if (leveledUp) EventBus.emit('level-up', this.player.stats.level);
 
+      const typeKey = enemy.typeKey;
+      const isBoss = enemy.isBoss;
+      const respawnDelayMs = isBoss ? 5 * 60 * 1000 : 30 * 1000;
+
       this.time.delayedCall(1500, () => {
         this.enemyGroup.remove(enemy.sprite, true, false);
         enemy.destroy();
         this.enemies = this.enemies.filter((e) => e !== enemy);
+      });
+
+      this.time.delayedCall(respawnDelayMs, () => {
+        const { x, y } = this.randomSpawnPosition();
+        this.spawnSingleEnemy(typeKey, x, y);
+        if (isBoss) {
+          EventBus.emit('loot-log', { type: 'kill', text: 'Le Gardien Rouille est réapparu quelque part sur la carte.' });
+        }
       });
     }
 
@@ -231,7 +252,7 @@ export class GameScene extends Phaser.Scene {
 
     this.player.update(time, this.enemies, (enemy, dmg, crit) => this.onHitEnemy(enemy, dmg, crit));
     for (const enemy of this.enemies) {
-      enemy.update(time, this.player.x, this.player.y, (amount) => this.damagePlayer(amount));
+      enemy.update(time, this.player.x, this.player.y, (amount) => this.damagePlayer(amount), this.inSafeZone);
     }
 
     // Barrière invisible : aucun ennemi ne peut entrer dans la safe zone
