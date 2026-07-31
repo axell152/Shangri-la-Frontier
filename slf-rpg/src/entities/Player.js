@@ -372,6 +372,17 @@ export class Player {
     }
   }
 
+  // Renvoie false si le coup est ignoré (encore invulnérable), sinon un
+  // objet { taken, damage, died }.
+  takeDamage(amount, time) {
+    if (time < this.invulnerableUntil) return false;
+    const reduced = Math.max(1, Math.round(amount - this.stats.totalDef * 0.5));
+    const died = this.stats.takeDamage(reduced);
+    this.invulnerableUntil = time + 700; // ~0.7s d'invulnérabilité après un coup
+    this.hitFlashUntil = time + 180;
+    return { taken: true, damage: reduced, died };
+  }
+
   equipWeapon(weapon) {
     this.weapons.equip(weapon);
   }
