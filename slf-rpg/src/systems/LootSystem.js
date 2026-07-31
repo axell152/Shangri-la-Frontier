@@ -1,11 +1,11 @@
-import { rollLoot } from '../data/lootTables.js';
-import { createWeapon } from '../data/weapons.js';
+import { rollLootTier } from '../data/lootTables.js';
+import { createRandomWeaponForTier } from '../data/weapons.js';
 
 export class LootSystem {
-  // Returns a weapon instance, or null if the enemy dropped nothing.
+  // Renvoie une instance d'arme concrète, ou null si l'ennemi n'a rien lâché.
   static rollForEnemy(lootTier) {
-    const roll = rollLoot(lootTier);
-    if (!roll) return null;
-    return createWeapon(roll.typeKey, roll.rarityKey);
+    const tierKey = rollLootTier(lootTier);
+    if (!tierKey) return null;
+    return createRandomWeaponForTier(tierKey);
   }
 }

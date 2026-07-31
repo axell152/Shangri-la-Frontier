@@ -1,39 +1,32 @@
-import { RARITY_ORDER } from './weapons.js';
+import { RARITY_ORDER } from './rarity.js';
 
-// Each tier gives weights across the rarity ladder. Higher tiers shift
-// probability mass toward the rarer end without ever guaranteeing it —
-// staying true to the "grind for garbage that occasionally isn't" feel.
+// Poids par palier de rareté (7 valeurs, dans l'ordre de RARITY_ORDER),
+// différents selon la force de l'ennemi tué. Plus l'ennemi est costaud,
+// plus la masse de probabilité se déplace vers les raretés hautes — sans
+// jamais garantir le haut du panier, même pour le boss.
 const TIER_WEIGHTS = {
-  low:  { TROUVAILLE: 55, COMMUNE: 32, RARE: 11, EPIQUE: 2,  LEGENDAIRE: 0,   MYTHIQUE: 0 },
-  mid:  { TROUVAILLE: 35, COMMUNE: 35, RARE: 20, EPIQUE: 8,  LEGENDAIRE: 2,   MYTHIQUE: 0 },
-  high: { TROUVAILLE: 15, COMMUNE: 25, RARE: 30, EPIQUE: 20, LEGENDAIRE: 8,   MYTHIQUE: 2 },
-  boss: { TROUVAILLE: 0,  COMMUNE: 10, RARE: 25, EPIQUE: 30, LEGENDAIRE: 25,  MYTHIQUE: 10 }
+  low: [55, 30, 12, 2.5, 0.5, 0, 0],
+  mid: [35, 32, 20, 10, 2.5, 0.4, 0.05],
+  high: [15, 25, 28, 22, 8, 1.8, 0.2],
+  boss: [0, 8, 22, 30, 28, 10, 2]
 };
 
 const DROP_CHANCE_BY_TIER = { low: 0.45, mid: 0.6, high: 0.85, boss: 1.0 };
 
-const WEAPON_TYPE_KEYS = ['epee_rouillee', 'dague_ebrechee', 'lance_bambou', 'hache_bucheron', 'arc_branches'];
-
-function weightedPick(weights) {
-  const entries = RARITY_ORDER.map((key) => [key, weights[key] || 0]);
-  const total = entries.reduce((sum, [, w]) => sum + w, 0);
+function weightedPickTier(weights) {
+  const total = weights.reduce((sum, w) => sum + w, 0);
   if (total <= 0) return null;
   let roll = Math.random() * total;
-  for (const [key, w] of entries) {
-    if (roll < w) return key;
-    roll -= w;
+  for (let i = 0; i < RARITY_ORDER.length; i++) {
+    if (roll < weights[i]) return RARITY_ORDER[i];
+    roll -= weights[i];
   }
-  return entries[entries.length - 1][0];
+  return RARITY_ORDER[RARITY_ORDER.length - 1];
 }
 
-// Returns { typeKey, rarityKey } or null if nothing dropped this time.
-export function rollLoot(lootTier) {
+// Renvoie une clé de rareté (ex: 'RARE') ou null si rien ne drop cette fois.
+export function rollLootTier(lootTier) {
   const dropChance = DROP_CHANCE_BY_TIER[lootTier] ?? 0.4;
   if (Math.random() > dropChance) return null;
-
-  const rarityKey = weightedPick(TIER_WEIGHTS[lootTier] || TIER_WEIGHTS.low);
-  if (!rarityKey) return null;
-
-  const typeKey = WEAPON_TYPE_KEYS[Math.floor(Math.random() * WEAPON_TYPE_KEYS.length)];
-  return { typeKey, rarityKey };
+  return weightedPickTier(TIER_WEIGHTS[lootTier] || TIER_WEIGHTS.low);
 }

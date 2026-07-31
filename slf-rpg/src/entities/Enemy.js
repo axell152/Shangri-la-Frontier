@@ -45,7 +45,7 @@ export class Enemy {
   get x() { return this.sprite.x; }
   get y() { return this.sprite.y; }
 
-  update(time, playerX, playerY, damagePlayer) {
+  update(time, playerX, playerY, damagePlayer, playerInSafeZone) {
     if (this.dead) return;
 
     const distToPlayer = Phaser.Math.Distance.Between(this.x, this.y, playerX, playerY);
@@ -73,7 +73,7 @@ export class Enemy {
     this.drawEnemyBlocks();
 
     if (this.isBoss) {
-      this.updateBossTelegraph(time, playerX, playerY, damagePlayer);
+      this.updateBossTelegraph(time, playerX, playerY, damagePlayer, playerInSafeZone);
     }
 
     this.hpBarBg.x = this.x;
@@ -119,7 +119,7 @@ export class Enemy {
   // Pattern de boss "façon Shangri-La Frontier" : une zone de danger
   // s'affiche et grossit pendant ~1s avant l'impact. Le joueur doit en
   // sortir avant la fin, sinon il encaisse un gros coup.
-  updateBossTelegraph(time, playerX, playerY, damagePlayer) {
+  updateBossTelegraph(time, playerX, playerY, damagePlayer, playerInSafeZone) {
     const AGGRO_RANGE = 260; // le boss ne charge que si le joueur est dans cette portée
 
     if (!this.telegraphState) {
@@ -127,7 +127,7 @@ export class Enemy {
         this.nextTelegraphAt = time + 2500; // délai avant la toute première charge
       }
       const distToPlayer = Phaser.Math.Distance.Between(this.x, this.y, playerX, playerY);
-      if (time > this.nextTelegraphAt && distToPlayer <= AGGRO_RANGE) {
+      if (time > this.nextTelegraphAt && distToPlayer <= AGGRO_RANGE && !playerInSafeZone) {
         this.telegraphState = {
           startTime: time,
           duration: 1100,
@@ -144,8 +144,8 @@ export class Enemy {
 
     if (progress >= 1) {
       const dist = Phaser.Math.Distance.Between(playerX, playerY, this.telegraphState.x, this.telegraphState.y);
-      if (dist <= this.telegraphState.maxRadius && damagePlayer) {
-        damagePlayer(this.atk * 2.2); // frappe lourde si le joueur n'a pas bougé à temps
+      if (dist <= this.telegraphState.maxRadius && damagePlayer && !playerInSafeZone) {
+        damagePlayer(this.atk * 2.2); // frappe lourde si le joueur n'a pas bougé/fui à temps
       }
       this.telegraphGfx.clear();
       this.telegraphState = null;
