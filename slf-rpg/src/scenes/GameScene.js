@@ -24,6 +24,12 @@ export class GameScene extends Phaser.Scene {
     this.safeZone = { x: WORLD_W / 2, y: WORLD_H / 2, radius: 90 };
     this.inSafeZone = false;
 
+    // Marchand : à l'intérieur de la safe zone, vente et fusion d'armes (touche T).
+    this.merchant = { x: WORLD_W / 2 + 45, y: WORLD_H / 2 - 20, radius: 45 };
+    this.nearMerchant = false;
+    this.merchantPanelOpen = false;
+    this.inventoryOpen = false;
+
     this.enemies = [];
     this.enemyGroup = this.physics.add.group();
     this.spawnEnemies();
@@ -41,15 +47,47 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.saveKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F);
+    this.talkKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.T);
+    this.inventoryKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.I);
+    this.pickupKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
+
     this.safeZoneGfx = this.add.graphics();
     this.drawSafeZone();
+    this.merchantGfx = this.add.graphics();
+    this.drawMerchant();
 
     this.physics.add.overlap(this.player.sprite, this.enemyGroup, (playerSprite, enemySprite) =>
       this.handleEnemyContact(enemySprite), null, this);
 
     EventBus.on('equip-weapon', (weaponId) => {
       const weapon = this.player.weapons.equipFromInventory(weaponId);
-      if (weapon) EventBus.emit('stats-updated', this.buildStatePayload());
+      if (weapon) this.emitStatsUpdate();
+    });
+
+    EventBus.on('sell-weapon', (weaponId) => {
+      const value = this.player.weapons.sellWeapon(weaponId);
+      if (value > 0) {
+        this.player.gold += value;
+        EventBus.emit('loot-log', { type: 'pickup', text: `Vendu pour ${value} or.` });
+        this.emitStatsUpdate();
+      }
+    });
+
+    EventBus.on('merge-weapons', (name) => {
+      const groups = this.player.weapons.getMergeableGroups();
+      const group = groups.find((g) => g.name === name);
+      if (!group || this.player.gold < group.cost) {
+        EventBus.emit('loot-log', { type: 'kill', text: "Fusion impossible (pas assez d'or ou d'exemplaires)." });
+        return;
+      }
+      const upgraded = this.player.weapons.mergeByName(name);
+      if (upgraded) {
+        this.player.gold -= group.cost;
+        EventBus.emit('loot-log', { type: 'pickup', text: `Fusion réussie : ${upgraded.rarityLabel} ${upgraded.name} !` });
+        this.emitStatsUpdate();
+      } else {
+        EventBus.emit('loot-log', { type: 'kill', text: 'Cette arme est déjà au palier maximum.' });
+      }
     });
 
     EventBus.on('respawn-request', () => this.respawnPlayer());
@@ -59,7 +97,7 @@ export class GameScene extends Phaser.Scene {
       window.location.reload();
     });
 
-    EventBus.emit('stats-updated', this.buildStatePayload());
+    this.emitStatsUpdate();
   }
 
   emitStatsUpdate() {
@@ -82,6 +120,24 @@ export class GameScene extends Phaser.Scene {
     g.fillTriangle(x - 7, y + 6, x + 7, y + 6, x, y - 10);
     g.fillStyle(0xffd23d, 1);
     g.fillTriangle(x - 3, y + 6, x + 3, y + 6, x, y - 3);
+  }
+
+  drawMerchant() {
+    const g = this.merchantGfx;
+    const { x, y } = this.merchant;
+    g.clear();
+    // Silhouette simple façon marchand (robe + capuche)
+    g.fillStyle(0x6b4f2a, 1);
+    g.fillTriangle(x - 12, y + 16, x + 12, y + 16, x, y - 10);
+    g.fillStyle(0xd9c39a, 1);
+    g.fillCircle(x, y - 16, 7);
+    g.fillStyle(0x3a2a1a, 1);
+    g.fillTriangle(x - 9, y - 14, x + 9, y - 14, x, y - 26);
+    // Étal (petite table)
+    g.fillStyle(0x5a4632, 1);
+    g.fillRect(x - 18, y + 18, 36, 5);
+    g.fillRect(x - 16, y + 23, 3, 8);
+    g.fillRect(x + 13, y + 23, 3, 8);
   }
 
   manualSave() {
@@ -139,7 +195,7 @@ export class GameScene extends Phaser.Scene {
     if (!result) return; // encore invulnérable, coup ignoré
 
     EventBus.emit('player-hit', { damage: result.damage });
-    EventBus.emit('stats-updated', this.buildStatePayload());
+    this.emitStatsUpdate();
 
     if (result.died) this.handlePlayerDeath();
   }
@@ -151,14 +207,26 @@ export class GameScene extends Phaser.Scene {
     EventBus.emit('loot-log', { type: 'kill', text: 'Tu es mort.' });
   }
 
+  // La mort ramène à la DERNIÈRE sauvegarde manuelle (niveau, inventaire,
+  // or, tout). S'il n'y a jamais eu de sauvegarde, le personnage repart
+  // complètement de zéro — sauvegarder régulièrement est donc important.
   respawnPlayer() {
     this.playerIsDead = false;
-    this.player.stats.hp = this.player.stats.maxHp;
+
+    const save = SaveSystem.load();
+    if (save) {
+      SaveSystem.applyTo(this.player, save);
+      this.player.stats.hp = this.player.stats.maxHp;
+      EventBus.emit('loot-log', { type: 'kill', text: 'Progression perdue depuis ta dernière sauvegarde.' });
+    } else {
+      this.player.resetFresh();
+      EventBus.emit('loot-log', { type: 'kill', text: 'Aucune sauvegarde trouvée — nouveau départ.' });
+    }
+
     this.player.sprite.setPosition(WORLD_W / 2, WORLD_H / 2);
     this.player.invulnerableUntil = this.time.now + 1200;
     this.player.hitFlashUntil = 0;
-    EventBus.emit('loot-log', { type: 'pickup', text: 'Respawn effectué.' });
-    EventBus.emit('stats-updated', this.buildStatePayload());
+    this.emitStatsUpdate();
   }
 
   onHitEnemy(enemy, damage, isCrit) {
@@ -192,7 +260,7 @@ export class GameScene extends Phaser.Scene {
       });
     }
 
-    EventBus.emit('stats-updated', this.buildStatePayload());
+    this.emitStatsUpdate();
   }
 
   showDamagePopup(x, y, damage, isCrit) {
@@ -229,11 +297,11 @@ export class GameScene extends Phaser.Scene {
     EventBus.emit('loot-log', { type: 'pickup', text: `Récupéré: ${nearby.weapon.rarityLabel} ${nearby.weapon.name}` });
     nearby.sprite.destroy();
     this.lootDrops = this.lootDrops.filter((d) => d !== nearby);
-    EventBus.emit('stats-updated', this.buildStatePayload());
+    this.emitStatsUpdate();
   }
 
   buildStatePayload() {
-    const { stats, weapons } = this.player;
+    const { stats, weapons, gold } = this.player;
     return {
       level: stats.level,
       hp: stats.hp,
@@ -243,7 +311,9 @@ export class GameScene extends Phaser.Scene {
       atk: stats.totalAtk,
       def: stats.totalDef,
       equipped: weapons.equipped,
-      inventory: weapons.inventory
+      inventory: weapons.inventory,
+      gold,
+      mergeGroups: weapons.getMergeableGroups()
     };
   }
 
@@ -305,7 +375,7 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    if (Phaser.Input.Keyboard.JustDown(this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E))) {
+    if (Phaser.Input.Keyboard.JustDown(this.pickupKey)) {
       this.tryPickupLoot();
     }
 
@@ -318,6 +388,29 @@ export class GameScene extends Phaser.Scene {
     }
     if (this.inSafeZone && Phaser.Input.Keyboard.JustDown(this.saveKey)) {
       this.manualSave();
+    }
+
+    // Marchand : détecte l'entrée/sortie et gère l'ouverture du panneau (touche T)
+    const distToMerchant = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.merchant.x, this.merchant.y);
+    const nearMerchantNow = distToMerchant <= this.merchant.radius;
+    if (nearMerchantNow !== this.nearMerchant) {
+      this.nearMerchant = nearMerchantNow;
+      EventBus.emit('merchant-nearby', this.nearMerchant);
+      if (!this.nearMerchant && this.merchantPanelOpen) {
+        this.merchantPanelOpen = false;
+        EventBus.emit('merchant-panel', false);
+      }
+    }
+    if (this.nearMerchant && Phaser.Input.Keyboard.JustDown(this.talkKey)) {
+      this.merchantPanelOpen = !this.merchantPanelOpen;
+      EventBus.emit('merchant-panel', this.merchantPanelOpen);
+      if (this.merchantPanelOpen) this.emitStatsUpdate();
+    }
+
+    // Inventaire : touche I pour ouvrir/fermer
+    if (Phaser.Input.Keyboard.JustDown(this.inventoryKey)) {
+      this.inventoryOpen = !this.inventoryOpen;
+      EventBus.emit('inventory-panel', this.inventoryOpen);
     }
   }
 
@@ -335,7 +428,6 @@ export class GameScene extends Phaser.Scene {
     gfx.setDepth(10);
 
     if (kind === 'staff') {
-      // Bille d'énergie avec un léger halo
       gfx.fillStyle(color, 0.25);
       gfx.fillCircle(0, 0, 8);
       gfx.fillStyle(color, 1);
@@ -343,7 +435,6 @@ export class GameScene extends Phaser.Scene {
       gfx.fillStyle(0xffffff, 0.8);
       gfx.fillCircle(-1, -1, 1.5);
     } else if (kind === 'gun') {
-      // Projectile à énergie allongé
       gfx.fillStyle(color, 0.3);
       gfx.fillRect(-8, -3, 16, 6);
       gfx.fillStyle(color, 1);
@@ -351,7 +442,6 @@ export class GameScene extends Phaser.Scene {
       gfx.fillStyle(0xffffff, 0.9);
       gfx.fillRect(4, -1, 4, 2);
     } else {
-      // Flèche (par défaut, notamment pour "bow")
       gfx.fillStyle(0x8b5a2b, 1);
       gfx.fillRect(-10, -1.5, 16, 3);
       gfx.fillStyle(color, 1);

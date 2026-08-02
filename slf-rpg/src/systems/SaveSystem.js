@@ -27,6 +27,7 @@ export class SaveSystem {
           equipped: player.weapons.equipped,
           inventory: player.weapons.inventory
         },
+        gold: player.gold,
         position: { x: player.x, y: player.y }
       };
       localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
@@ -72,6 +73,10 @@ export class SaveSystem {
     if (save.weapons) {
       player.weapons.inventory = Array.isArray(save.weapons.inventory) ? save.weapons.inventory : [];
       if (save.weapons.equipped) player.weapons.equipped = save.weapons.equipped;
+    }
+
+    if (typeof save.gold === 'number') {
+      player.gold = save.gold;
     }
 
     if (save.position && typeof save.position.x === 'number' && typeof save.position.y === 'number') {

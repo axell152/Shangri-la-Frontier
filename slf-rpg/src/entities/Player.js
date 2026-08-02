@@ -12,6 +12,7 @@ export class Player {
     this.scene = scene;
     this.stats = new StatsSystem();
     this.weapons = new WeaponSystem();
+    this.gold = 0;
     this.lastAttackAt = 0;
     this.facing = 'down';
 
@@ -381,6 +382,14 @@ export class Player {
     this.invulnerableUntil = time + 700; // ~0.7s d'invulnérabilité après un coup
     this.hitFlashUntil = time + 180;
     return { taken: true, damage: reduced, died };
+  }
+
+  // Réinitialise complètement le personnage (niveau, arme, inventaire, or)
+  // — utilisé quand le joueur meurt sans avoir jamais sauvegardé.
+  resetFresh() {
+    this.stats = new StatsSystem();
+    this.weapons = new WeaponSystem();
+    this.gold = 0;
   }
 
   equipWeapon(weapon) {
