@@ -21,6 +21,21 @@ export const ENEMY_TYPES = {
     size: 24,
     lootTier: 'mid'
   },
+  // Créature furtive de la Forêt murmurante : invisible et immobile tant
+  // que le joueur n'est pas assez proche, puis se révèle et devient
+  // agressive. Une fois révélée, se comporte comme un ennemi normal.
+  loup_furtif: {
+    name: 'Loup des Brumes',
+    hp: 30,
+    atk: 7,
+    def: 2,
+    speed: 95,
+    xp: 14,
+    color: 0x4a5a52,
+    size: 24,
+    lootTier: 'mid',
+    stealthy: true
+  },
   golem_debris: {
     name: 'Golem de débris',
     hp: 120,
