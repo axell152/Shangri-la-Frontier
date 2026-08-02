@@ -4,9 +4,9 @@ import { Enemy } from '../entities/Enemy.js';
 import { LootSystem } from '../systems/LootSystem.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
 import { EventBus } from '../EventBus.js';
+import { WORLD_W, WORLD_H, HUB, ZONES } from '../data/zones.js';
 
-const WORLD_W = 1600;
-const WORLD_H = 1200;
+const HUB_LINE_COLOR = 0xffd23d;
 
 export class GameScene extends Phaser.Scene {
   constructor() {
@@ -19,25 +19,26 @@ export class GameScene extends Phaser.Scene {
 
     this.add.grid(WORLD_W / 2, WORLD_H / 2, WORLD_W, WORLD_H, 40, 40, 0x14141f, 1, 0x1e1e2c, 1);
 
-    // Safe zone : seul endroit où sauvegarder, manuellement (touche F).
-    // Définie avant le spawn des ennemis pour qu'ils l'évitent dès le départ.
-    this.safeZone = { x: WORLD_W / 2, y: WORLD_H / 2, radius: 90 };
+    // Safe zone (Havre-du-Départ) : seul endroit où sauvegarder, manuellement (touche F).
+    this.safeZone = { x: HUB.x, y: HUB.y, radius: HUB.radius };
     this.inSafeZone = false;
 
     // Marchand : à l'intérieur de la safe zone, vente et fusion d'armes (touche T).
-    this.merchant = { x: WORLD_W / 2 + 45, y: WORLD_H / 2 - 20, radius: 45 };
+    this.merchant = { x: HUB.x + 45, y: HUB.y - 20, radius: 45 };
     this.nearMerchant = false;
     this.merchantPanelOpen = false;
     this.inventoryOpen = false;
 
+    this.drawWorldMap();
+
     this.enemies = [];
     this.enemyGroup = this.physics.add.group();
-    this.spawnEnemies();
+    this.spawnAllZones();
 
     this.lootDrops = [];
     this.projectiles = [];
 
-    this.player = new Player(this, WORLD_W / 2, WORLD_H / 2);
+    this.player = new Player(this, HUB.x, HUB.y);
     this.cameras.main.startFollow(this.player.sprite, true, 0.1, 0.1);
 
     const save = SaveSystem.load();
@@ -104,6 +105,40 @@ export class GameScene extends Phaser.Scene {
     EventBus.emit('stats-updated', this.buildStatePayload());
   }
 
+  // Dessine les régions du monde (fond coloré + libellé + chemins en
+  // pointillés depuis le hub), une fois pour toutes au chargement.
+  drawWorldMap() {
+    const g = this.add.graphics();
+
+    for (const zone of ZONES) {
+      g.lineStyle(2, HUB_LINE_COLOR, 0.25);
+      g.beginPath();
+      g.moveTo(HUB.x, HUB.y);
+      g.lineTo(zone.x, zone.y);
+      g.strokePath();
+    }
+
+    for (const zone of ZONES) {
+      g.fillStyle(zone.color, zone.locked ? 0.12 : 0.22);
+      g.fillEllipse(zone.x, zone.y, zone.radiusX * 2, zone.radiusY * 2);
+      g.lineStyle(2, zone.color, zone.locked ? 0.3 : 0.55);
+      g.strokeEllipse(zone.x, zone.y, zone.radiusX * 2, zone.radiusY * 2);
+
+      const label = this.add.text(zone.x, zone.y - 12, zone.label, {
+        fontSize: '20px', color: zone.locked ? '#888888' : '#ffffff', fontFamily: 'monospace', fontStyle: 'bold'
+      }).setOrigin(0.5).setAlpha(0.85);
+
+      const subLabel = zone.locked ? zone.lockedReason : zone.flavor;
+      this.add.text(zone.x, zone.y + 14, subLabel, {
+        fontSize: '13px', color: zone.locked ? '#666666' : '#cccccc', fontFamily: 'monospace'
+      }).setOrigin(0.5).setAlpha(0.75);
+    }
+
+    this.add.text(HUB.x, HUB.y - HUB.radius - 22, HUB.label, {
+      fontSize: '18px', color: '#ffd23d', fontFamily: 'monospace', fontStyle: 'bold'
+    }).setOrigin(0.5);
+  }
+
   drawSafeZone() {
     const g = this.safeZoneGfx;
     const { x, y, radius } = this.safeZone;
@@ -126,14 +161,12 @@ export class GameScene extends Phaser.Scene {
     const g = this.merchantGfx;
     const { x, y } = this.merchant;
     g.clear();
-    // Silhouette simple façon marchand (robe + capuche)
     g.fillStyle(0x6b4f2a, 1);
     g.fillTriangle(x - 12, y + 16, x + 12, y + 16, x, y - 10);
     g.fillStyle(0xd9c39a, 1);
     g.fillCircle(x, y - 16, 7);
     g.fillStyle(0x3a2a1a, 1);
     g.fillTriangle(x - 9, y - 14, x + 9, y - 14, x, y - 26);
-    // Étal (petite table)
     g.fillStyle(0x5a4632, 1);
     g.fillRect(x - 18, y + 18, 36, 5);
     g.fillRect(x - 16, y + 23, 3, 8);
@@ -149,34 +182,45 @@ export class GameScene extends Phaser.Scene {
     if (ok) EventBus.emit('save-flash');
   }
 
-  randomSpawnPosition() {
+  // Position aléatoire dans une zone donnée (ou dans tout le monde si
+  // aucune zone n'est précisée), en évitant toujours la safe zone.
+  randomPositionInZone(zone) {
     let x, y;
+    let attempts = 0;
     do {
-      x = Phaser.Math.Between(100, WORLD_W - 100);
-      y = Phaser.Math.Between(100, WORLD_H - 100);
-    } while (Phaser.Math.Distance.Between(x, y, this.safeZone.x, this.safeZone.y) < this.safeZone.radius + 40);
+      if (zone) {
+        const angle = Math.random() * Math.PI * 2;
+        const r = Math.random();
+        x = zone.x + Math.cos(angle) * zone.radiusX * r;
+        y = zone.y + Math.sin(angle) * zone.radiusY * r;
+      } else {
+        x = Phaser.Math.Between(100, WORLD_W - 100);
+        y = Phaser.Math.Between(100, WORLD_H - 100);
+      }
+      attempts++;
+    } while (
+      Phaser.Math.Distance.Between(x, y, this.safeZone.x, this.safeZone.y) < this.safeZone.radius + 40 &&
+      attempts < 20
+    );
     return { x, y };
   }
 
-  spawnSingleEnemy(typeKey, x, y) {
+  spawnSingleEnemy(typeKey, x, y, zoneId) {
     const enemy = new Enemy(this, x, y, typeKey);
+    enemy.zoneId = zoneId || null;
     this.enemies.push(enemy);
     this.enemyGroup.add(enemy.sprite);
     return enemy;
   }
 
-  spawnEnemies() {
-    const layout = [
-      { type: 'slime', count: 5 },
-      { type: 'gobelin', count: 4 },
-      { type: 'golem_debris', count: 2 },
-      { type: 'gardien_rouille', count: 1 }
-    ];
-
-    for (const group of layout) {
-      for (let i = 0; i < group.count; i++) {
-        const { x, y } = this.randomSpawnPosition();
-        this.spawnSingleEnemy(group.type, x, y);
+  spawnAllZones() {
+    for (const zone of ZONES) {
+      if (zone.locked) continue;
+      for (const spawn of zone.enemyPool) {
+        for (let i = 0; i < spawn.count; i++) {
+          const { x, y } = this.randomPositionInZone(zone);
+          this.spawnSingleEnemy(spawn.type, x, y, zone.id);
+        }
       }
     }
   }
@@ -187,12 +231,10 @@ export class GameScene extends Phaser.Scene {
     this.damagePlayer(enemy.atk);
   }
 
-  // Point d'entrée unique pour tous les dégâts subis par le joueur
-  // (contact avec un ennemi, ou impact d'une charge de boss télégraphiée).
   damagePlayer(amount) {
     if (this.player.stats.hp <= 0) return;
     const result = this.player.takeDamage(amount, this.time.now);
-    if (!result) return; // encore invulnérable, coup ignoré
+    if (!result) return;
 
     EventBus.emit('player-hit', { damage: result.damage });
     this.emitStatsUpdate();
@@ -207,9 +249,6 @@ export class GameScene extends Phaser.Scene {
     EventBus.emit('loot-log', { type: 'kill', text: 'Tu es mort.' });
   }
 
-  // La mort ramène à la DERNIÈRE sauvegarde manuelle (niveau, inventaire,
-  // or, tout). S'il n'y a jamais eu de sauvegarde, le personnage repart
-  // complètement de zéro — sauvegarder régulièrement est donc important.
   respawnPlayer() {
     this.playerIsDead = false;
 
@@ -223,7 +262,7 @@ export class GameScene extends Phaser.Scene {
       EventBus.emit('loot-log', { type: 'kill', text: 'Aucune sauvegarde trouvée — nouveau départ.' });
     }
 
-    this.player.sprite.setPosition(WORLD_W / 2, WORLD_H / 2);
+    this.player.sprite.setPosition(HUB.x, HUB.y);
     this.player.invulnerableUntil = this.time.now + 1200;
     this.player.hitFlashUntil = 0;
     this.emitStatsUpdate();
@@ -243,6 +282,8 @@ export class GameScene extends Phaser.Scene {
 
       const typeKey = enemy.typeKey;
       const isBoss = enemy.isBoss;
+      const zoneId = enemy.zoneId;
+      const zone = ZONES.find((z) => z.id === zoneId);
       const respawnDelayMs = isBoss ? 5 * 60 * 1000 : 30 * 1000;
 
       this.time.delayedCall(1500, () => {
@@ -252,10 +293,10 @@ export class GameScene extends Phaser.Scene {
       });
 
       this.time.delayedCall(respawnDelayMs, () => {
-        const { x, y } = this.randomSpawnPosition();
-        this.spawnSingleEnemy(typeKey, x, y);
+        const { x, y } = this.randomPositionInZone(zone);
+        this.spawnSingleEnemy(typeKey, x, y, zoneId);
         if (isBoss) {
-          EventBus.emit('loot-log', { type: 'kill', text: 'Le Gardien Rouille est réapparu quelque part sur la carte.' });
+          EventBus.emit('loot-log', { type: 'kill', text: `Le Gardien Rouille est réapparu dans ${zone ? zone.label : 'la zone'}.` });
         }
       });
     }
@@ -379,7 +420,6 @@ export class GameScene extends Phaser.Scene {
       this.tryPickupLoot();
     }
 
-    // Safe zone : détecte l'entrée/sortie et gère la sauvegarde manuelle (touche F)
     const distToSafeZone = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.safeZone.x, this.safeZone.y);
     const inZoneNow = distToSafeZone <= this.safeZone.radius;
     if (inZoneNow !== this.inSafeZone) {
@@ -390,7 +430,6 @@ export class GameScene extends Phaser.Scene {
       this.manualSave();
     }
 
-    // Marchand : détecte l'entrée/sortie et gère l'ouverture du panneau (touche T)
     const distToMerchant = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.merchant.x, this.merchant.y);
     const nearMerchantNow = distToMerchant <= this.merchant.radius;
     if (nearMerchantNow !== this.nearMerchant) {
@@ -407,16 +446,12 @@ export class GameScene extends Phaser.Scene {
       if (this.merchantPanelOpen) this.emitStatsUpdate();
     }
 
-    // Inventaire : touche I pour ouvrir/fermer
     if (Phaser.Input.Keyboard.JustDown(this.inventoryKey)) {
       this.inventoryOpen = !this.inventoryOpen;
       EventBus.emit('inventory-panel', this.inventoryOpen);
     }
   }
 
-  // Tir générique : le visuel change selon le "kind" de l'arme (flèche pour
-  // un arc, bille magique pour un bâton, projectile à énergie pour une arme
-  // futuriste). Toute arme "ranged" future n'a qu'à ajouter un cas ici.
   spawnProjectile(x, y, angle, damage, isCrit, color, maxRange, kind) {
     const speed = 12;
     const vx = Math.cos(angle) * speed;
