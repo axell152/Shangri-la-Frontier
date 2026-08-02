@@ -4,9 +4,9 @@ import { Enemy } from '../entities/Enemy.js';
 import { LootSystem } from '../systems/LootSystem.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
 import { EventBus } from '../EventBus.js';
-
-const WORLD_W = 1600;
-const WORLD_H = 1200;
+import { WorldGenerator } from '../world/WorldGenerator.js';
+import { WORLD_CONFIG } from '../world/worldConfig.js';
+import { createPoiInteraction } from '../world/poi/poiSystem.js';
 
 export class GameScene extends Phaser.Scene {
   constructor() {
@@ -14,21 +14,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   create() {
-    this.physics.world.setBounds(0, 0, WORLD_W, WORLD_H);
-    this.cameras.main.setBounds(0, 0, WORLD_W, WORLD_H);
+    this.worldGenerator = new WorldGenerator(WORLD_CONFIG);
+    this.worldState = this.worldGenerator.generate();
 
-    this.add.grid(WORLD_W / 2, WORLD_H / 2, WORLD_W, WORLD_H, 40, 40, 0x14141f, 1, 0x1e1e2c, 1);
+    this.physics.world.setBounds(0, 0, this.worldState.worldWidth, this.worldState.worldHeight);
+    this.cameras.main.setBounds(0, 0, this.worldState.worldWidth, this.worldState.worldHeight);
 
-    // Safe zone : seul endroit où sauvegarder, manuellement (touche F).
-    // Définie avant le spawn des ennemis pour qu'ils l'évitent dès le départ.
-    this.safeZone = { x: WORLD_W / 2, y: WORLD_H / 2, radius: 90 };
-    this.inSafeZone = false;
-
-    // Marchand : à l'intérieur de la safe zone, vente et fusion d'armes (touche T).
-    this.merchant = { x: WORLD_W / 2 + 45, y: WORLD_H / 2 - 20, radius: 45 };
-    this.nearMerchant = false;
-    this.merchantPanelOpen = false;
-    this.inventoryOpen = false;
+    this.buildWorld();
 
     this.enemies = [];
     this.enemyGroup = this.physics.add.group();
@@ -36,9 +28,16 @@ export class GameScene extends Phaser.Scene {
 
     this.lootDrops = [];
     this.projectiles = [];
+    this.inventoryOpen = false;
 
-    this.player = new Player(this, WORLD_W / 2, WORLD_H / 2);
+    const spawn = this.getInitialSpawn();
+    this.player = new Player(this, spawn.x, spawn.y);
     this.cameras.main.startFollow(this.player.sprite, true, 0.1, 0.1);
+
+    // Prevent player from walking on non-road tiles
+    if (this.obstacleGroup) {
+      this.physics.add.collider(this.player.sprite, this.obstacleGroup);
+    }
 
     const save = SaveSystem.load();
     if (save) {
@@ -46,15 +45,12 @@ export class GameScene extends Phaser.Scene {
       EventBus.emit('loot-log', { type: 'pickup', text: 'Sauvegarde chargée.' });
     }
 
-    this.saveKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F);
-    this.talkKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.T);
     this.inventoryKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.I);
     this.pickupKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
 
-    this.safeZoneGfx = this.add.graphics();
-    this.drawSafeZone();
-    this.merchantGfx = this.add.graphics();
-    this.drawMerchant();
+    // Merchant buy handler
+    EventBus.on('buy-weapon', (weaponId) => this.handleBuyWeapon(weaponId));
+    EventBus.on('merchant-open', (inventory) => { this.currentMerchantInventory = inventory || null; });
 
     this.physics.add.overlap(this.player.sprite, this.enemyGroup, (playerSprite, enemySprite) =>
       this.handleEnemyContact(enemySprite), null, this);
@@ -100,44 +96,173 @@ export class GameScene extends Phaser.Scene {
     this.emitStatsUpdate();
   }
 
+  buildWorld() {
+    this.worldTiles = [];
+    const tileSize = this.worldState.tileSize;
+
+    this.worldBg = this.add.rectangle(0, 0, this.worldState.worldWidth, this.worldState.worldHeight, 0x071018)
+      .setOrigin(0, 0)
+      .setDepth(-3);
+
+    this.worldGraphics = this.add.graphics();
+    this.worldGraphics.setDepth(-2);
+    this.worldBorder = this.add.graphics();
+    this.worldBorder.setDepth(-1);
+
+    this.drawWorldBorder();
+
+    // Create obstacle group for non-traversable tiles (everything except roads and plaza)
+    this.obstacleGroup = this.physics.add.staticGroup();
+
+    for (const cell of this.worldState.cells) {
+      this.drawTile(cell, tileSize);
+      if (cell.district !== 'road' && cell.district !== 'plaza') {
+        const ox = cell.x + tileSize / 2;
+        const oy = cell.y + tileSize / 2;
+        const rect = this.add.rectangle(ox, oy, tileSize, tileSize, 0x000000, 0).setOrigin(0.5);
+        this.physics.add.existing(rect, true);
+        // ensure body matches tile size
+        if (rect.body && rect.body.setSize) rect.body.setSize(tileSize, tileSize);
+        this.obstacleGroup.add(rect);
+      }
+    }
+
+    this.poiMarkers = [];
+    for (const poi of this.worldState.pois) {
+      let marker;
+      // merchant / tavern / house show a small icon + letter
+      if (poi.type === 'merchant' || poi.type === 'tavern' || poi.type === 'house') {
+        marker = this.add.container(poi.x, poi.y).setDepth(2);
+        const bg = this.add.circle(0, 0, 8, poi.color, 0.95);
+        const label = poi.type === 'merchant' ? '$' : poi.type === 'tavern' ? 'T' : 'H';
+        const text = this.add.text(0, 0, label, { fontSize: '10px', color: '#041018', fontFamily: 'monospace' }).setOrigin(0.5);
+        marker.add([bg, text]);
+      } else {
+        marker = this.add.circle(poi.x, poi.y, 6, poi.color, 0.35).setStrokeStyle(1, 0xffffff, 0.35).setDepth(1);
+      }
+      this.poiMarkers.push(marker);
+      this.poiInteractions = this.poiInteractions || [];
+      this.poiInteractions.push(createPoiInteraction(poi));
+    }
+  }
+
+  drawWorldBorder() {
+    const g = this.worldBorder;
+    g.clear();
+    g.lineStyle(3, 0x23313a, 0.8);
+    g.strokeRect(0, 0, this.worldState.worldWidth, this.worldState.worldHeight);
+  }
+
+  drawTile(cell, tileSize) {
+    const g = this.worldGraphics;
+    const { x, y } = cell;
+    const inset = 2;
+
+    if (cell.district === 'plaza') {
+      g.fillStyle(0x4b3220, 1);
+      g.fillRect(x, y, tileSize, tileSize);
+      g.fillStyle(0x7b5a2f, 0.9);
+      g.fillRect(x + 6, y + 6, tileSize - 12, tileSize - 12);
+      g.lineStyle(2, 0xf2c96d, 0.7);
+      g.strokeRect(x + 8, y + 8, tileSize - 16, tileSize - 16);
+      return;
+    }
+
+    if (cell.district === 'road') {
+      g.fillStyle(0x2d3136, 1);
+      g.fillRect(x, y, tileSize, tileSize);
+      g.fillStyle(0x5e6268, 0.8);
+      g.fillRect(x + 2, y + 2, tileSize - 4, tileSize - 4);
+      g.lineStyle(1, 0x8b9096, 0.25);
+      g.strokeRect(x + 1, y + 1, tileSize - 2, tileSize - 2);
+      return;
+    }
+
+    if (cell.district === 'building') {
+      g.fillStyle(0x2f3b49, 1);
+      g.fillRect(x, y, tileSize, tileSize);
+      g.fillStyle(0x4e6479, 0.95);
+      g.fillRect(x + 4, y + 4, tileSize - 8, tileSize - 8);
+      g.fillStyle(0x7f97b0, 0.7);
+      g.fillRect(x + 8, y + 8, 6, tileSize - 16);
+      g.fillRect(x + tileSize - 14, y + 8, 6, tileSize - 16);
+      g.fillRect(x + 8, y + 8, tileSize - 16, 6);
+      g.fillRect(x + 8, y + tileSize - 14, tileSize - 16, 6);
+      // small door centered at bottom
+      g.fillStyle(0x3e2b1f, 1);
+      g.fillRect(x + tileSize / 2 - 6, y + tileSize - 18, 12, 14);
+      // possible sign above door
+      g.fillStyle(0x9db7c9, 0.9);
+      g.fillRect(x + tileSize / 2 - 14, y + 6, 28, 6);
+      return;
+    }
+
+    g.fillStyle(this.getBiomeBaseColor(cell.biome), 1);
+    g.fillRect(x, y, tileSize, tileSize);
+
+    switch (cell.biome) {
+      case 'water':
+        g.fillStyle(0x2b6f91, 0.7);
+        g.fillCircle(x + tileSize * 0.3, y + tileSize * 0.35, tileSize * 0.18);
+        g.fillCircle(x + tileSize * 0.7, y + tileSize * 0.6, tileSize * 0.12);
+        break;
+      case 'marsh':
+        g.fillStyle(0x4b7a4a, 0.75);
+        g.fillRect(x + inset, y + inset, tileSize - inset * 2, tileSize - inset * 2);
+        break;
+      case 'grass':
+        g.fillStyle(0x4e8c3d, 0.85);
+        g.fillCircle(x + tileSize * 0.3, y + tileSize * 0.3, tileSize * 0.15);
+        g.fillCircle(x + tileSize * 0.68, y + tileSize * 0.58, tileSize * 0.12);
+        break;
+      case 'forest':
+        g.fillStyle(0x2f5d2b, 0.95);
+        g.fillRect(x + inset, y + inset, tileSize - inset * 2, tileSize - inset * 2);
+        break;
+      case 'rock':
+        g.fillStyle(0x6e665b, 0.95);
+        g.fillRect(x + inset, y + inset, tileSize - inset * 2, tileSize - inset * 2);
+        break;
+      default:
+        break;
+    }
+
+    g.lineStyle(1, 0x11161b, 0.2);
+    g.strokeRect(x + 0.5, y + 0.5, tileSize - 1, tileSize - 1);
+  }
+
+  getBiomeBaseColor(biome) {
+    switch (biome) {
+      case 'water': return 0x18344d;
+      case 'marsh': return 0x3a5b39;
+      case 'grass': return 0x427a35;
+      case 'forest': return 0x30592d;
+      case 'rock': return 0x56504a;
+      default: return 0x4a7a35;
+    }
+  }
+
+  getInitialSpawn() {
+    const configX = Number(WORLD_CONFIG.initialPlayerSpawn?.x);
+    const configY = Number(WORLD_CONFIG.initialPlayerSpawn?.y);
+
+    const cityCell = this.worldState.cells.find((cell) => cell.district === 'plaza')
+      || this.worldState.cells.find((cell) => cell.district === 'road');
+
+    if (cityCell) {
+      return {
+        x: cityCell.x + this.worldState.tileSize / 2,
+        y: cityCell.y + this.worldState.tileSize / 2
+      };
+    }
+
+    const x = Number.isFinite(configX) && configX > 0 ? configX : this.worldState.worldWidth / 2;
+    const y = Number.isFinite(configY) && configY > 0 ? configY : this.worldState.worldHeight / 2;
+    return { x, y };
+  }
+
   emitStatsUpdate() {
     EventBus.emit('stats-updated', this.buildStatePayload());
-  }
-
-  drawSafeZone() {
-    const g = this.safeZoneGfx;
-    const { x, y, radius } = this.safeZone;
-    g.clear();
-    g.fillStyle(0xffb200, 0.08);
-    g.fillCircle(x, y, radius);
-    g.lineStyle(2, 0xffb200, 0.6);
-    g.strokeCircle(x, y, radius);
-
-    // Petit feu de camp au centre, purement décoratif
-    g.fillStyle(0x5a4632, 1);
-    g.fillRect(x - 10, y + 6, 20, 4);
-    g.fillStyle(0xff8c00, 1);
-    g.fillTriangle(x - 7, y + 6, x + 7, y + 6, x, y - 10);
-    g.fillStyle(0xffd23d, 1);
-    g.fillTriangle(x - 3, y + 6, x + 3, y + 6, x, y - 3);
-  }
-
-  drawMerchant() {
-    const g = this.merchantGfx;
-    const { x, y } = this.merchant;
-    g.clear();
-    // Silhouette simple façon marchand (robe + capuche)
-    g.fillStyle(0x6b4f2a, 1);
-    g.fillTriangle(x - 12, y + 16, x + 12, y + 16, x, y - 10);
-    g.fillStyle(0xd9c39a, 1);
-    g.fillCircle(x, y - 16, 7);
-    g.fillStyle(0x3a2a1a, 1);
-    g.fillTriangle(x - 9, y - 14, x + 9, y - 14, x, y - 26);
-    // Étal (petite table)
-    g.fillStyle(0x5a4632, 1);
-    g.fillRect(x - 18, y + 18, 36, 5);
-    g.fillRect(x - 16, y + 23, 3, 8);
-    g.fillRect(x + 13, y + 23, 3, 8);
   }
 
   manualSave() {
@@ -150,12 +275,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   randomSpawnPosition() {
-    let x, y;
-    do {
-      x = Phaser.Math.Between(100, WORLD_W - 100);
-      y = Phaser.Math.Between(100, WORLD_H - 100);
-    } while (Phaser.Math.Distance.Between(x, y, this.safeZone.x, this.safeZone.y) < this.safeZone.radius + 40);
-    return { x, y };
+    const walkable = this.worldState.cells.filter((cell) => cell.biome !== 'water');
+    const cell = walkable[Math.floor(Math.random() * walkable.length)] || this.worldState.cells[0];
+    return {
+      x: cell.x + this.worldState.tileSize / 2,
+      y: cell.y + this.worldState.tileSize / 2
+    };
   }
 
   spawnSingleEnemy(typeKey, x, y) {
@@ -166,17 +291,20 @@ export class GameScene extends Phaser.Scene {
   }
 
   spawnEnemies() {
-    const layout = [
-      { type: 'slime', count: 5 },
-      { type: 'gobelin', count: 4 },
-      { type: 'golem_debris', count: 2 },
-      { type: 'gardien_rouille', count: 1 }
-    ];
+    const spawnCandidates = this.worldState.cells.filter((cell) => cell.biome !== 'water' && cell.district === 'wild');
+    const baseCount = Math.max(2, Math.min(4, Math.floor(spawnCandidates.length / 30)));
 
-    for (const group of layout) {
-      for (let i = 0; i < group.count; i++) {
-        const { x, y } = this.randomSpawnPosition();
-        this.spawnSingleEnemy(group.type, x, y);
+    for (const cell of spawnCandidates.slice(0, Math.min(spawnCandidates.length, baseCount))) {
+      const biomeKey = cell.biome;
+      const enemyType = this.worldState.spawnRules?.find((rule) => rule.biome === biomeKey)?.enemyType || 'slime';
+      const count = 1;
+
+      for (let i = 0; i < count; i++) {
+        const { x, y } = {
+          x: cell.x + this.worldState.tileSize / 2,
+          y: cell.y + this.worldState.tileSize / 2
+        };
+        this.spawnSingleEnemy(enemyType, x, y);
       }
     }
   }
@@ -192,7 +320,7 @@ export class GameScene extends Phaser.Scene {
   damagePlayer(amount) {
     if (this.player.stats.hp <= 0) return;
     const result = this.player.takeDamage(amount, this.time.now);
-    if (!result) return; // encore invulnérable, coup ignoré
+    if (!result) return;
 
     EventBus.emit('player-hit', { damage: result.damage });
     this.emitStatsUpdate();
@@ -207,9 +335,6 @@ export class GameScene extends Phaser.Scene {
     EventBus.emit('loot-log', { type: 'kill', text: 'Tu es mort.' });
   }
 
-  // La mort ramène à la DERNIÈRE sauvegarde manuelle (niveau, inventaire,
-  // or, tout). S'il n'y a jamais eu de sauvegarde, le personnage repart
-  // complètement de zéro — sauvegarder régulièrement est donc important.
   respawnPlayer() {
     this.playerIsDead = false;
 
@@ -223,7 +348,8 @@ export class GameScene extends Phaser.Scene {
       EventBus.emit('loot-log', { type: 'kill', text: 'Aucune sauvegarde trouvée — nouveau départ.' });
     }
 
-    this.player.sprite.setPosition(WORLD_W / 2, WORLD_H / 2);
+    const spawn = this.getInitialSpawn();
+    this.player.sprite.setPosition(spawn.x, spawn.y);
     this.player.invulnerableUntil = this.time.now + 1200;
     this.player.hitFlashUntil = 0;
     this.emitStatsUpdate();
@@ -321,25 +447,11 @@ export class GameScene extends Phaser.Scene {
     if (this.playerIsDead) return;
 
     this.player.update(time, this.enemies, (enemy, dmg, crit) => this.onHitEnemy(enemy, dmg, crit));
+    this.updatePoiInteractions();
     for (const enemy of this.enemies) {
-      enemy.update(time, this.player.x, this.player.y, (amount) => this.damagePlayer(amount), this.inSafeZone);
+      enemy.update(time, this.player.x, this.player.y, (amount) => this.damagePlayer(amount), false);
     }
 
-    // Barrière invisible : aucun ennemi ne peut entrer dans la safe zone
-    for (const enemy of this.enemies) {
-      if (enemy.dead) continue;
-      const distToZone = Phaser.Math.Distance.Between(enemy.x, enemy.y, this.safeZone.x, this.safeZone.y);
-      if (distToZone < this.safeZone.radius) {
-        const angle = Phaser.Math.Angle.Between(this.safeZone.x, this.safeZone.y, enemy.x, enemy.y);
-        enemy.sprite.setPosition(
-          this.safeZone.x + Math.cos(angle) * this.safeZone.radius,
-          this.safeZone.y + Math.sin(angle) * this.safeZone.radius
-        );
-        enemy.sprite.body.setVelocity(0, 0);
-      }
-    }
-
-    // Gestion des projectiles en vol (arc, bâton, arme futuriste...)
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
       const proj = this.projectiles[i];
       proj.x += proj.vx;
@@ -376,47 +488,80 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (Phaser.Input.Keyboard.JustDown(this.pickupKey)) {
-      this.tryPickupLoot();
-    }
-
-    // Safe zone : détecte l'entrée/sortie et gère la sauvegarde manuelle (touche F)
-    const distToSafeZone = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.safeZone.x, this.safeZone.y);
-    const inZoneNow = distToSafeZone <= this.safeZone.radius;
-    if (inZoneNow !== this.inSafeZone) {
-      this.inSafeZone = inZoneNow;
-      EventBus.emit('safe-zone-status', this.inSafeZone);
-    }
-    if (this.inSafeZone && Phaser.Input.Keyboard.JustDown(this.saveKey)) {
-      this.manualSave();
-    }
-
-    // Marchand : détecte l'entrée/sortie et gère l'ouverture du panneau (touche T)
-    const distToMerchant = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.merchant.x, this.merchant.y);
-    const nearMerchantNow = distToMerchant <= this.merchant.radius;
-    if (nearMerchantNow !== this.nearMerchant) {
-      this.nearMerchant = nearMerchantNow;
-      EventBus.emit('merchant-nearby', this.nearMerchant);
-      if (!this.nearMerchant && this.merchantPanelOpen) {
-        this.merchantPanelOpen = false;
-        EventBus.emit('merchant-panel', false);
+      const nearbyPoi = this.poiInteractions?.find((poi) => Phaser.Math.Distance.Between(this.player.x, this.player.y, poi.x, poi.y) < 90);
+      if (nearbyPoi && (nearbyPoi.type === 'merchant' || nearbyPoi.type === 'building')) {
+        this.enterPoi(nearbyPoi);
+      } else {
+        this.tryPickupLoot();
       }
     }
-    if (this.nearMerchant && Phaser.Input.Keyboard.JustDown(this.talkKey)) {
-      this.merchantPanelOpen = !this.merchantPanelOpen;
-      EventBus.emit('merchant-panel', this.merchantPanelOpen);
-      if (this.merchantPanelOpen) this.emitStatsUpdate();
-    }
 
-    // Inventaire : touche I pour ouvrir/fermer
     if (Phaser.Input.Keyboard.JustDown(this.inventoryKey)) {
       this.inventoryOpen = !this.inventoryOpen;
       EventBus.emit('inventory-panel', this.inventoryOpen);
     }
   }
 
-  // Tir générique : le visuel change selon le "kind" de l'arme (flèche pour
-  // un arc, bille magique pour un bâton, projectile à énergie pour une arme
-  // futuriste). Toute arme "ranged" future n'a qu'à ajouter un cas ici.
+  updatePoiInteractions() {
+    const nearby = this.poiInteractions?.filter((poi) => {
+      const distance = Phaser.Math.Distance.Between(this.player.x, this.player.y, poi.x, poi.y);
+      return distance < 90;
+    }) || [];
+
+    if (nearby.length > 0) {
+      const currentPoi = nearby[0];
+      EventBus.emit('poi-nearby', currentPoi);
+      // Also notify merchant prompt separately for UI
+      EventBus.emit('merchant-nearby', ['merchant', 'building'].includes(currentPoi.type));
+    } else {
+      EventBus.emit('poi-nearby', null);
+    }
+  }
+
+  enterPoi(poi) {
+    if (!poi) return;
+    const returnPos = { x: poi.x, y: poi.y };
+    // Fade camera then launch interior for smooth transition
+    this.cameras.main.fadeOut(250, 0, 0, 0);
+    this.cameras.main.once('camerafadeoutcomplete', () => {
+      this.scene.launch('Interior', { poi, returnPos });
+      this.scene.pause();
+    });
+    // Track current merchant inventory for buy operations
+    this.currentMerchantInventory = poi.meta?.inventory || null;
+  }
+
+  handleBuyWeapon(weaponId) {
+    if (!this.currentMerchantInventory) {
+      EventBus.emit('loot-log', { type: 'kill', text: 'Aucun marchand disponible.' });
+      return;
+    }
+
+    const idx = this.currentMerchantInventory.findIndex((w) => w.id === weaponId);
+    if (idx === -1) {
+      EventBus.emit('loot-log', { type: 'kill', text: 'Article introuvable.' });
+      return;
+    }
+
+    const weapon = this.currentMerchantInventory[idx];
+    const baseSell = this.player.weapons.getSellValue(weapon);
+    const price = Math.max(1, Math.round(baseSell * 2.5));
+
+    if (this.player.gold < price) {
+      EventBus.emit('loot-log', { type: 'kill', text: 'Pas assez d\'or.' });
+      return;
+    }
+
+    this.player.gold -= price;
+    this.player.weapons.addToInventory(weapon);
+    // remove from merchant stock
+    this.currentMerchantInventory.splice(idx, 1);
+
+    EventBus.emit('loot-log', { type: 'pickup', text: `Acheté : ${weapon.rarityLabel} ${weapon.name} pour ${price} or` });
+    EventBus.emit('merchant-open', this.currentMerchantInventory);
+    this.emitStatsUpdate();
+  }
+
   spawnProjectile(x, y, angle, damage, isCrit, color, maxRange, kind) {
     const speed = 12;
     const vx = Math.cos(angle) * speed;
