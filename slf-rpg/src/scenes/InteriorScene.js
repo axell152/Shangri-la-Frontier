@@ -20,7 +20,7 @@ export class InteriorScene extends Phaser.Scene {
 
     this.cameras.main.setBackgroundColor('#0b0b0f');
 
-    this.add.rectangle(w / 2, h / 2, w - 120, h - 120, this.building.interiorColor)
+    const room = this.add.rectangle(w / 2, h / 2, w - 120, h - 120, this.building.interiorColor)
       .setStrokeStyle(2, 0x444d57);
 
     this.add.text(w / 2, 48, this.building.label, {
@@ -30,6 +30,20 @@ export class InteriorScene extends Phaser.Scene {
     this.add.text(w / 2, 76, this.building.desc, {
       fontFamily: 'monospace', fontSize: '12px', color: '#999999'
     }).setOrigin(0.5);
+
+    // Sol texturé
+    for (let i = 0; i < 12; i++) {
+      this.add.line(w / 2 - 500 + i * 80, h / 2 + 150, 0, 0, 0, 24, 0x312419, 0.5).setLineWidth(2);
+    }
+    for (let j = 0; j < 5; j++) {
+      this.add.line(w / 2 - 500, h / 2 - 120 + j * 50, 0, 0, 400, 0, 0x312419, 0.5).setLineWidth(2);
+    }
+
+    // Décor mural et lumière
+    this.add.rectangle(w / 2 - 260, h / 2 - 40, 24, 120, 0x3d2c24);
+    this.add.rectangle(w / 2 + 260, h / 2 - 40, 24, 120, 0x3d2c24);
+    this.add.circle(w / 2, h / 2 - 120, 10, 0xffe59d, 0.85);
+    this.add.line(w / 2, h / 2 - 110, 0, 0, 0, 70, 0xffe59d, 0.35).setLineWidth(4);
 
     this.add.rectangle(w / 2, h / 2 + 120, w - 240, 140, 0x3c2a1b);
     this.add.rectangle(w / 2, h / 2 + 115, w - 260, 20, 0x5e4730);
@@ -45,34 +59,52 @@ export class InteriorScene extends Phaser.Scene {
     this.add.rectangle(shelfX + 70, shelfY + 4, 20, 16, 0xc0c0c0).setAngle(-6);
 
     if (this.building.id === 'taverne') {
-      this.add.rectangle(w / 2 - 160, h / 2 + 20, 170, 60, 0x5f3a26).setStrokeStyle(2, 0x3c2419);
-      this.add.rectangle(w / 2 - 140, h / 2 + 10, 24, 24, 0xb06519).setAngle(10);
-      this.add.rectangle(w / 2 - 120, h / 2 + 10, 20, 20, 0xefd9a1);
-      this.add.rectangle(w / 2 - 100, h / 2 + 8, 6, 28, 0x6f3a1c);
-      this.add.rectangle(w / 2 - 160, h / 2 - 4, 30, 10, 0x8f662f);
-      this.add.text(w / 2 - 160, h / 2 - 30, 'Bar', {
+      this.add.rectangle(w / 2 - 240, h / 2 + 16, 160, 72, 0x6a402d).setStrokeStyle(2, 0x3e2418);
+      this.add.rectangle(w / 2 - 210, h / 2 + 24, 28, 28, 0xd8a96b).setAngle(6);
+      this.add.rectangle(w / 2 - 170, h / 2 + 24, 20, 20, 0xc48b4c).setAngle(-8);
+      this.add.rectangle(w / 2 - 130, h / 2 + 24, 26, 22, 0x8f5937).setAngle(4);
+      this.add.text(w / 2 - 240, h / 2 - 14, 'Bar', {
         fontSize: '12px', color: '#ffd23d', fontFamily: 'monospace'
       }).setOrigin(0.5);
+      this.add.rectangle(w / 2 - 180, h / 2 + 70, 120, 8, 0x5c3b2d);
+      this.add.circle(w / 2 - 210, h / 2 + 20, 6, 0xf6f1cc);
+      this.add.circle(w / 2 - 165, h / 2 + 18, 4, 0xd08c55);
+      this.add.circle(w / 2 - 145, h / 2 + 18, 4, 0xd08c55);
+      for (let i = 0; i < 3; i++) {
+        this.add.rectangle(w / 2 - 220 + i * 70, h / 2 + 80, 30, 12, 0x4a2f24);
+        this.add.rectangle(w / 2 - 220 + i * 70, h / 2 + 70, 10, 14, 0x2f1d17);
+      }
     }
 
     if (this.building.id === 'echoppe') {
-      this.add.rectangle(w / 2 - 160, h / 2 + 20, 170, 60, 0x2b4f3c).setStrokeStyle(2, 0x173325);
-      this.add.rectangle(w / 2 - 150, h / 2 + 8, 18, 18, 0x78c450).setAngle(-8);
-      this.add.rectangle(w / 2 - 120, h / 2 + 8, 18, 18, 0xd95555).setAngle(12);
-      this.add.rectangle(w / 2 - 90, h / 2 + 8, 18, 18, 0x5a9cd4).setAngle(6);
-      this.add.text(w / 2 - 160, h / 2 - 30, 'Étal', {
+      this.add.rectangle(w / 2 - 240, h / 2 + 16, 160, 72, 0x264a3a).setStrokeStyle(2, 0x133121);
+      this.add.rectangle(w / 2 - 210, h / 2 + 22, 22, 22, 0x7bcf7f).setAngle(-10);
+      this.add.rectangle(w / 2 - 180, h / 2 + 22, 22, 22, 0xd96a6a).setAngle(8);
+      this.add.rectangle(w / 2 - 150, h / 2 + 22, 22, 22, 0x93c1ff).setAngle(6);
+      this.add.text(w / 2 - 240, h / 2 - 14, 'Étal', {
         fontSize: '12px', color: '#ffd23d', fontFamily: 'monospace'
       }).setOrigin(0.5);
+      this.add.rectangle(w / 2 - 180, h / 2 + 70, 120, 10, 0x1f553d);
+      this.add.circle(w / 2 - 210, h / 2 + 18, 6, 0xdfdfdf);
+      this.add.circle(w / 2 - 175, h / 2 + 18, 6, 0xf4cf4c);
+      this.add.rectangle(w / 2 - 220, h / 2 + 40, 18, 24, 0x3d5e4d);
+      this.add.rectangle(w / 2 - 190, h / 2 + 40, 18, 24, 0x843d4d);
+      this.add.rectangle(w / 2 - 160, h / 2 + 40, 18, 24, 0x4f69a4);
     }
 
     if (this.building.id === 'forge') {
-      this.add.rectangle(w / 2 - 160, h / 2 + 20, 170, 60, 0x4a3020).setStrokeStyle(2, 0x2c1e13);
-      this.add.rectangle(w / 2 - 150, h / 2 + 10, 40, 16, 0xe0582a).setAngle(0);
-      this.add.rectangle(w / 2 - 130, h / 2 - 4, 10, 30, 0x3a2f1d);
-      this.add.rectangle(w / 2 - 90, h / 2 - 4, 10, 30, 0x3a2f1d);
-      this.add.text(w / 2 - 160, h / 2 - 30, 'Enclume', {
+      this.add.rectangle(w / 2 - 240, h / 2 + 16, 160, 72, 0x4a3020).setStrokeStyle(2, 0x2c1e13);
+      this.add.rectangle(w / 2 - 210, h / 2 + 24, 30, 18, 0xe75829);
+      this.add.rectangle(w / 2 - 170, h / 2 + 14, 10, 30, 0x3a2f1d);
+      this.add.rectangle(w / 2 - 135, h / 2 + 14, 10, 30, 0x3a2f1d);
+      this.add.text(w / 2 - 240, h / 2 - 14, 'Enclume', {
         fontSize: '12px', color: '#ffd23d', fontFamily: 'monospace'
       }).setOrigin(0.5);
+      this.add.line(w / 2 - 190, h / 2 + 20, 0, 0, 40, 0, 0x898174, 1).setLineWidth(4);
+      this.add.circle(w / 2 - 188, h / 2 + 26, 5, 0xc7c7c7);
+      this.add.rectangle(w / 2 - 220, h / 2 + 30, 18, 28, 0x24302a);
+      this.add.line(w / 2 - 220, h / 2 + 10, 0, 0, 0, 40, 0x4a3e28, 1).setLineWidth(4);
+      this.add.rectangle(w / 2 - 180, h / 2 + 38, 26, 6, 0x90856f);
     }
 
     const npcCenterX = w / 2 - 40;

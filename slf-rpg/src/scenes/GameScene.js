@@ -143,6 +143,25 @@ export class GameScene extends Phaser.Scene {
     g.fillStyle(0x4f432f, 1);
     g.fillCircle(TOWN_CENTER.x, TOWN_CENTER.y, 34);
 
+    // Bancs autour de la place
+    g.fillStyle(0x60462e, 1);
+    const benchY = TOWN_CENTER.y - 120;
+    for (let dx of [-120, 120]) {
+      g.fillRect(TOWN_CENTER.x + dx - 22, benchY, 44, 8);
+      g.fillRect(TOWN_CENTER.x + dx - 18, benchY - 18, 4, 18);
+      g.fillRect(TOWN_CENTER.x + dx + 14, benchY - 18, 4, 18);
+    }
+
+    // Lampadaires le long du chemin principal
+    g.fillStyle(0x3c2c20, 1);
+    for (let i = 0; i < 4; i++) {
+      const px = TOWN_CENTER.x - 180 + i * 120;
+      g.fillRect(px - 3, TOWN_CENTER.y - 250, 6, 80);
+      g.fillStyle(0xffd86a, 0.75);
+      g.fillCircle(px, TOWN_CENTER.y - 254, 10);
+      g.fillStyle(0x3c2c20, 1);
+    }
+
     const roadWidth = 18;
     for (const b of BUILDINGS) {
       const dx = b.x - TOWN_CENTER.x;
@@ -172,11 +191,22 @@ export class GameScene extends Phaser.Scene {
       g.fillStyle(0x5c4d3b, 1);
       g.fillRect(b.x - 38, b.y + 4, 18, 10);
       g.fillRect(b.x + 20, b.y + 4, 18, 10);
-      if (b.savePoint) {
-        g.fillStyle(0xffd23d, 0.16);
-        g.fillCircle(b.x, b.y, this.saveRadius - 12);
+      g.fillStyle(0xe1c278, 1);
+      g.fillRect(b.x - 26, b.y - 12, 12, 12);
+      g.fillRect(b.x + 14, b.y - 12, 12, 12);
+      g.fillStyle(0x42341f, 1);
+      g.fillRect(b.x - 8, b.y + 8, 16, 20);
+      g.fillStyle(0x593e2d, 1);
+      g.fillRect(b.x - 20, b.y - 20, 40, 10);
+      g.fillStyle(0x3a2c20, 1);
+      g.fillRect(b.x - 6, b.y - 22, 12, 6);
+      g.fillStyle(0x4b3424, 1);
+      g.fillRect(b.x - 2, b.y - 16, 4, 7);
+      if (b.id === 'taverne') {
+        g.fillStyle(0x3f2b2b, 1);
+        g.fillRect(b.x - 24, b.y - 60, 48, 14);
         g.fillStyle(0xffd23d, 1);
-        g.fillRect(b.x - 18, b.y + 28, 36, 6);
+        g.fillRect(b.x - 14, b.y - 54, 28, 4);
       }
 
       this.add.text(b.x, b.y + 34, b.label, {
