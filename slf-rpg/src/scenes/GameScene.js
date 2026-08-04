@@ -19,9 +19,10 @@ export class GameScene extends Phaser.Scene {
 
     this.add.grid(WORLD_W / 2, WORLD_H / 2, WORLD_W, WORLD_H, 40, 40, 0x14141f, 1, 0x1e1e2c, 1);
 
-    // La ville entière est la safe zone : rectangle, pas de cercle.
-    this.safeZone = TOWN;
     this.inSafeZone = false;
+    const saveBuilding = BUILDINGS.find((b) => b.savePoint);
+    this.savePoint = saveBuilding || null;
+    this.saveRadius = 96;
 
     const merchantBuilding = BUILDINGS.find((b) => b.functional);
     this.merchant = { x: merchantBuilding.x, y: merchantBuilding.y, radius: 55 };
@@ -133,6 +134,26 @@ export class GameScene extends Phaser.Scene {
 
     g.fillStyle(0x2a2a1f, 1);
     g.fillRect(TOWN.x1, TOWN.y1, w, h);
+
+    // Chemins de terre et place centrale
+    g.fillStyle(0x5e5037, 1);
+    g.fillRect(TOWN_CENTER.x - 30, TOWN.y1, 60, h);
+    g.fillRect(TOWN.x1, TOWN_CENTER.y - 28, w, 56);
+    g.fillCircle(TOWN_CENTER.x, TOWN_CENTER.y, 44);
+    g.fillStyle(0x4f432f, 1);
+    g.fillCircle(TOWN_CENTER.x, TOWN_CENTER.y, 34);
+
+    const roadWidth = 18;
+    for (const b of BUILDINGS) {
+      const dx = b.x - TOWN_CENTER.x;
+      const dy = b.y - TOWN_CENTER.y;
+      if (Math.abs(dx) >= Math.abs(dy)) {
+        g.fillRect(Math.min(b.x, TOWN_CENTER.x) - roadWidth / 2, b.y - roadWidth / 2, Math.abs(dx) + roadWidth, roadWidth);
+      } else {
+        g.fillRect(b.x - roadWidth / 2, Math.min(b.y, TOWN_CENTER.y) - roadWidth / 2, roadWidth, Math.abs(dy) + roadWidth);
+      }
+    }
+
     g.lineStyle(3, 0xffb200, 0.5);
     g.strokeRect(TOWN.x1, TOWN.y1, w, h);
 
@@ -140,13 +161,23 @@ export class GameScene extends Phaser.Scene {
       fontSize: '24px', color: '#ffd23d', fontFamily: 'monospace', fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    // Bâtiments décoratifs (non fonctionnels pour l'instant)
+    // Bâtiments décoratifs
     for (const b of BUILDINGS) {
-      if (b.functional) continue; // le marchand a son propre rendu dédié
       g.fillStyle(b.color, 1);
       g.fillRect(b.x - 40, b.y - 24, 80, 48);
       g.fillStyle(0x1a1a14, 1);
-      g.fillTriangle(b.x - 46, b.y - 24, b.x + 46, b.y - 24, b.x, b.y - 50);
+      g.fillTriangle(b.x - 46, b.y - 24, b.x + 46, b.y - 24, b.x, b.y - 58);
+      g.fillStyle(0x272218, 1);
+      g.fillRect(b.x - 14, b.y - 8, 28, 32);
+      g.fillStyle(0x5c4d3b, 1);
+      g.fillRect(b.x - 38, b.y + 4, 18, 10);
+      g.fillRect(b.x + 20, b.y + 4, 18, 10);
+      if (b.savePoint) {
+        g.fillStyle(0xffd23d, 0.16);
+        g.fillCircle(b.x, b.y, this.saveRadius - 12);
+        g.fillStyle(0xffd23d, 1);
+        g.fillRect(b.x - 18, b.y + 28, 36, 6);
+      }
 
       this.add.text(b.x, b.y + 34, b.label, {
         fontSize: '13px', color: '#ffffff', fontFamily: 'monospace', fontStyle: 'bold'
@@ -156,21 +187,25 @@ export class GameScene extends Phaser.Scene {
       }).setOrigin(0.5);
     }
 
-    // Portes + chemin en pointillés vers chaque biome
+    // Portes et sentiers vers l'extérieur
     for (const gate of GATES) {
-      const zone = ZONES.find((z) => z.id === gate.targetZone);
-      g.lineStyle(2, 0xffd23d, 0.3);
+      const [dx, dy] = GATE_DIRECTIONS[gate.direction];
+      const pathEnd = { x: gate.x + dx * 42, y: gate.y + dy * 42 };
+
+      g.lineStyle(20, 0x5e5037, 1);
       g.beginPath();
       g.moveTo(gate.x, gate.y);
-      g.lineTo(zone.x, zone.y);
+      g.lineTo(pathEnd.x, pathEnd.y);
       g.strokePath();
 
       g.fillStyle(0xffd23d, 0.8);
       g.fillCircle(gate.x, gate.y, 8);
+      g.fillStyle(0x8a6d3a, 1);
+      g.fillRect(pathEnd.x - 12, pathEnd.y - 6, 24, 12);
 
-      const [dx, dy] = GATE_DIRECTIONS[gate.direction];
-      this.add.text(gate.x + dx * 26, gate.y + dy * 26, `→ ${zone.label}`, {
-        fontSize: '13px', color: '#ffd23d', fontFamily: 'monospace', fontStyle: 'bold'
+      const zone = ZONES.find((z) => z.id === gate.targetZone);
+      this.add.text(gate.x + dx * 28, gate.y + dy * 28, `→ ${zone.label}`, {
+        fontSize: '12px', color: '#ffd23d', fontFamily: 'monospace', fontStyle: 'bold'
       }).setOrigin(0.5);
     }
   }
@@ -211,6 +246,11 @@ export class GameScene extends Phaser.Scene {
 
   isInTown(x, y) {
     return x >= TOWN.x1 && x <= TOWN.x2 && y >= TOWN.y1 && y <= TOWN.y2;
+  }
+
+  isInSavePoint(x, y) {
+    if (!this.savePoint) return false;
+    return Phaser.Math.Distance.Between(x, y, this.savePoint.x, this.savePoint.y) <= this.saveRadius;
   }
 
   // Repousse un point hors de la ville, vers le bord le plus proche.
@@ -461,7 +501,7 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    const inZoneNow = this.isInTown(this.player.x, this.player.y);
+    const inZoneNow = this.isInSavePoint(this.player.x, this.player.y);
     if (inZoneNow !== this.inSafeZone) {
       this.inSafeZone = inZoneNow;
       EventBus.emit('safe-zone-status', this.inSafeZone);

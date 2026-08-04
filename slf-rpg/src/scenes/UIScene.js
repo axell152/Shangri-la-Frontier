@@ -90,7 +90,7 @@ export class UIScene extends Phaser.Scene {
       <div id="hud-hint">Z,Q,S,D: déplacer · Clic gauche: attaquer · E: ramasser · I: inventaire
         · <span id="hud-reset-save" style="text-decoration: underline; cursor: pointer; pointer-events: auto;">réinitialiser la sauvegarde</span>
       </div>
-      <div id="hud-save-prompt">Appuie sur F pour sauvegarder</div>
+      <div id="hud-save-prompt">Appuie sur F dans la taverne pour sauvegarder</div>
       <div id="hud-merchant-prompt">Appuie sur T pour parler au marchand</div>
       <div id="hud-building-prompt"></div>
       <div id="hud-hitflash"></div>

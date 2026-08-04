@@ -15,7 +15,10 @@ export const TOWN_CENTER = { x: (TOWN.x1 + TOWN.x2) / 2, y: (TOWN.y1 + TOWN.y2) 
 
 // Bâtiments dans la ville, tous visitables (touche E près de la porte).
 export const BUILDINGS = [
-  { id: 'merchant', label: 'Marchand', x: TOWN_CENTER.x + 130, y: TOWN_CENTER.y - 60, functional: true },
+  {
+    id: 'merchant', label: 'Marchand', x: TOWN_CENTER.x + 130, y: TOWN_CENTER.y - 60,
+    functional: true, color: 0x7a5a3a
+  },
   {
     id: 'forge', label: 'Forge', desc: 'Réparation d\u2019armes — bientôt',
     x: TOWN_CENTER.x - 220, y: TOWN_CENTER.y - 80, functional: false, color: 0x8a5a3a,
@@ -23,7 +26,7 @@ export const BUILDINGS = [
     lines: ['Reviens quand j\u2019aurai remis l\u2019enclume en état.', 'La chaleur, ça forge le caractère.']
   },
   {
-    id: 'taverne', label: 'Taverne', desc: 'Quêtes — bientôt',
+    id: 'taverne', label: 'Taverne', desc: 'Auberge — point de sauvegarde', savePoint: true,
     x: TOWN_CENTER.x - 220, y: TOWN_CENTER.y + 110, functional: false, color: 0x6b3a3a,
     interiorColor: 0x3b2416, npcName: 'Aubergiste',
     lines: ['Pas de quête pour l\u2019instant, mais assieds-toi.', 'On raconte des choses sur les ruines à l\u2019ouest...']
