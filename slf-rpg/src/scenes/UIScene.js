@@ -16,10 +16,9 @@ export class UIScene extends Phaser.Scene {
     EventBus.on('safe-zone-status', (inZone) => this.toggleSavePrompt(inZone));
     EventBus.on('save-flash', () => this.flashSaveConfirmed());
     EventBus.on('merchant-nearby', (near) => this.toggleMerchantPrompt(near));
+    EventBus.on('building-nearby', (label) => this.toggleBuildingPrompt(label));
     EventBus.on('merchant-panel', (open) => this.toggleMerchantPanel(open));
-    EventBus.on('merchant-open', (inventory) => { this.merchantInventory = inventory || []; this.renderMerchantModal(this.state || {}); });
     EventBus.on('inventory-panel', (open) => this.toggleInventoryPanel(open));
-    EventBus.on('poi-nearby', (poi) => this.togglePoiPrompt(poi));
   }
 
   buildDom() {
@@ -55,15 +54,15 @@ export class UIScene extends Phaser.Scene {
           border: none; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 13px;
           cursor: pointer; pointer-events: auto; letter-spacing: 1px; }
         #hud-respawn-btn:hover { background: #ff5d75; }
-        #hud-save-prompt, #hud-merchant-prompt, #hud-poi-prompt { position: absolute; left: 50%; transform: translateX(-50%);
+        #hud-save-prompt, #hud-merchant-prompt { position: absolute; left: 50%; transform: translateX(-50%);
           border-radius: 4px; padding: 6px 14px; font-size: 12px; display: none; }
         #hud-save-prompt { bottom: 44px; background: rgba(255,178,0,0.15); border: 1px solid #ffb200; color: #ffd23d; }
         #hud-save-prompt.visible { display: block; }
         #hud-save-prompt.confirmed { background: rgba(157,255,157,0.15); border-color: #9dff9d; color: #9dff9d; }
         #hud-merchant-prompt { bottom: 76px; background: rgba(61,157,255,0.15); border: 1px solid #3d9dff; color: #9dd4ff; }
         #hud-merchant-prompt.visible { display: block; }
-        #hud-poi-prompt { bottom: 108px; background: rgba(255,178,0,0.14); border: 1px solid #ffb200; color: #ffd23d; }
-        #hud-poi-prompt.visible { display: block; }
+        #hud-building-prompt { bottom: 76px; background: rgba(157,255,157,0.12); border: 1px solid #9dff9d; color: #c9ffc9; }
+        #hud-building-prompt.visible { display: block; }
 
         /* Modales (inventaire / marchand) */
         .hud-modal { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -93,7 +92,7 @@ export class UIScene extends Phaser.Scene {
       </div>
       <div id="hud-save-prompt">Appuie sur F pour sauvegarder</div>
       <div id="hud-merchant-prompt">Appuie sur T pour parler au marchand</div>
-      <div id="hud-poi-prompt"></div>
+      <div id="hud-building-prompt"></div>
       <div id="hud-hitflash"></div>
       <div id="hud-gameover">
         TU ES MORT<br>
@@ -109,7 +108,6 @@ export class UIScene extends Phaser.Scene {
       <div class="hud-modal" id="hud-merchant-modal">
         <h3>Marchand <span class="close-hint">T pour fermer</span></h3>
         <div style="color:#ffd23d; font-size:13px; margin-bottom:10px;">Or : <span id="hud-merchant-gold">0</span></div>
-        <div id="hud-merchant-list" style="margin-bottom:10px;"></div>
         <div class="section-title">Fusion (3 identiques → palier supérieur)</div>
         <div id="hud-merchant-merge"></div>
         <div class="section-title">Vendre</div>
@@ -196,26 +194,6 @@ export class UIScene extends Phaser.Scene {
   renderMerchantModal(state) {
     this.dom.querySelector('#hud-merchant-gold').textContent = state.gold;
 
-    const merchantListEl = this.dom.querySelector('#hud-merchant-list');
-    if (merchantListEl) {
-      if (!this.merchantInventory || this.merchantInventory.length === 0) {
-        merchantListEl.innerHTML = '<div class="empty">Rien à vendre.</div>';
-      } else {
-        merchantListEl.innerHTML = this.merchantInventory.map((weapon) => {
-          const price = Math.max(1, Math.round((state.equipped ? (state.equipped.atk || 1) : 1) * 2));
-          return `
-            <div class="row">
-              <span style="color:${this.hex(weapon.color)}">[${weapon.rarityLabel}] ${weapon.name}</span>
-              <button class="buy" data-id="${weapon.id}">Acheter</button>
-            </div>
-          `;
-        }).join('');
-        merchantListEl.querySelectorAll('button.buy').forEach((btn) => {
-          btn.addEventListener('click', () => EventBus.emit('buy-weapon', btn.dataset.id));
-        });
-      }
-    }
-
     const mergeEl = this.dom.querySelector('#hud-merchant-merge');
     if (state.mergeGroups.length === 0) {
       mergeEl.innerHTML = '<div class="empty">Aucune fusion possible (il faut 3 armes identiques).</div>';
@@ -266,17 +244,14 @@ export class UIScene extends Phaser.Scene {
     this.dom.querySelector('#hud-merchant-prompt').classList.toggle('visible', near);
   }
 
-  togglePoiPrompt(poi) {
-    const el = this.dom.querySelector('#hud-poi-prompt');
-    if (!poi) {
+  toggleBuildingPrompt(label) {
+    const el = this.dom.querySelector('#hud-building-prompt');
+    if (label) {
+      el.textContent = `Appuie sur E pour entrer (${label})`;
+      el.classList.add('visible');
+    } else {
       el.classList.remove('visible');
-      el.textContent = '';
-      return;
     }
-    let text = `${poi.label} — ${poi.description}`;
-    if (['merchant', 'building', 'tavern', 'house'].includes(poi.type)) text += ' · E: entrer';
-    el.textContent = text;
-    el.classList.add('visible');
   }
 
   pushLog(entry) {
