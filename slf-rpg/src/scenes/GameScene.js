@@ -18,6 +18,10 @@ export class GameScene extends Phaser.Scene {
     this.physics.world.setBounds(0, 0, WORLD_W, WORLD_H);
     this.cameras.main.setBounds(0, 0, WORLD_W, WORLD_H);
 
+    // Expose la définition de la ville à d'autres systèmes (DecorSystem, etc.)
+    this.TOWN = TOWN;
+    this.TOWN_CENTER = TOWN_CENTER;
+
     this.add.grid(WORLD_W / 2, WORLD_H / 2, WORLD_W, WORLD_H, 40, 40, 0x14141f, 1, 0x1e1e2c, 1);
 
     this.inSafeZone = false;
