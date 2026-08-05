@@ -5,6 +5,7 @@ import { LootSystem } from '../systems/LootSystem.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
 import { EventBus } from '../EventBus.js';
 import { WORLD_W, WORLD_H, TOWN, TOWN_CENTER, BUILDINGS, GATES, ZONES } from '../data/zones.js';
+import { DecorSystem } from '../systems/DecorSystem.js';
 
 const GATE_DIRECTIONS = { north: [0, -1], south: [0, 1], east: [1, 0], west: [-1, 0] };
 
@@ -35,6 +36,10 @@ export class GameScene extends Phaser.Scene {
 
     this.drawWorldMap();
     this.drawTown();
+
+    // système de décor (piétons, chariots, chiens)
+    this.decorSystem = new DecorSystem(this);
+    this.decorSystem.spawnDecor(14);
 
     this.enemies = [];
     this.enemyGroup = this.physics.add.group();
@@ -461,6 +466,8 @@ export class GameScene extends Phaser.Scene {
 
   update(time) {
     if (this.playerIsDead) return;
+
+    if (this.decorSystem) this.decorSystem.update(time);
 
     this.player.update(time, this.enemies, (enemy, dmg, crit) => this.onHitEnemy(enemy, dmg, crit));
     for (const enemy of this.enemies) {
