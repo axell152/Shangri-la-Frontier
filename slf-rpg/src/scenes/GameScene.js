@@ -191,38 +191,41 @@ export class GameScene extends Phaser.Scene {
 
     // Bâtiments décoratifs
     for (const b of BUILDINGS) {
+      // Augmente l'échelle des bâtiments pour les rendre plus lisibles
+      const bw = 140; // width
+      const bh = 96;  // height
       g.fillStyle(b.color, 1);
-      g.fillRect(b.x - 40, b.y - 24, 80, 48);
+      g.fillRect(b.x - bw / 2, b.y - bh / 2 + 8, bw, bh - 8);
       g.fillStyle(0x1a1a14, 1);
-      g.fillTriangle(b.x - 46, b.y - 24, b.x + 46, b.y - 24, b.x, b.y - 58);
+      g.fillTriangle(b.x - (bw / 2 + 6), b.y - bh / 2 + 8, b.x + (bw / 2 + 6), b.y - bh / 2 + 8, b.x, b.y - bh / 2 - 30);
       g.fillStyle(0x272218, 1);
-      g.fillRect(b.x - 14, b.y - 8, 28, 32);
+      g.fillRect(b.x - Math.round(bw * 0.175), b.y - Math.round(bh * 0.08), Math.round(bw * 0.35), Math.round(bh * 0.65));
       g.fillStyle(0x5c4d3b, 1);
-      g.fillRect(b.x - 38, b.y + 4, 18, 10);
-      g.fillRect(b.x + 20, b.y + 4, 18, 10);
+      g.fillRect(b.x - Math.round(bw * 0.475), b.y + Math.round(bh * 0.04), Math.round(bw * 0.125), Math.round(bh * 0.1));
+      g.fillRect(b.x + Math.round(bw * 0.325), b.y + Math.round(bh * 0.04), Math.round(bw * 0.125), Math.round(bh * 0.1));
       g.fillStyle(0xe1c278, 1);
-      g.fillRect(b.x - 26, b.y - 12, 12, 12);
-      g.fillRect(b.x + 14, b.y - 12, 12, 12);
+      g.fillRect(b.x - Math.round(bw * 0.325), b.y - Math.round(bh * 0.125), Math.round(bw * 0.15), Math.round(bh * 0.125));
+      g.fillRect(b.x + Math.round(bw * 0.175), b.y - Math.round(bh * 0.125), Math.round(bw * 0.15), Math.round(bh * 0.125));
       g.fillStyle(0x42341f, 1);
-      g.fillRect(b.x - 8, b.y + 8, 16, 20);
+      g.fillRect(b.x - Math.round(bw * 0.12), b.y + Math.round(bh * 0.08), Math.round(bw * 0.24), Math.round(bh * 0.2));
       g.fillStyle(0x593e2d, 1);
-      g.fillRect(b.x - 20, b.y - 20, 40, 10);
+      g.fillRect(b.x - Math.round(bw * 0.285), b.y - Math.round(bh * 0.2), Math.round(bw * 0.57), Math.round(bh * 0.1));
       g.fillStyle(0x3a2c20, 1);
-      g.fillRect(b.x - 6, b.y - 22, 12, 6);
+      g.fillRect(b.x - Math.round(bw * 0.075), b.y - Math.round(bh * 0.23), Math.round(bw * 0.15), Math.round(bh * 0.06));
       g.fillStyle(0x4b3424, 1);
-      g.fillRect(b.x - 2, b.y - 16, 4, 7);
+      g.fillRect(b.x - Math.round(bw * 0.025), b.y - Math.round(bh * 0.16), Math.round(bw * 0.05), Math.round(bh * 0.07));
       if (b.id === 'taverne') {
         g.fillStyle(0x3f2b2b, 1);
-        g.fillRect(b.x - 24, b.y - 60, 48, 14);
+        g.fillRect(b.x - Math.round(bw * 0.34), b.y - Math.round(bh * 0.62), Math.round(bw * 0.68), Math.round(bh * 0.14));
         g.fillStyle(0xffd23d, 1);
-        g.fillRect(b.x - 14, b.y - 54, 28, 4);
+        g.fillRect(b.x - Math.round(bw * 0.2), b.y - Math.round(bh * 0.56), Math.round(bw * 0.4), Math.round(bh * 0.03));
       }
 
-      this.add.text(b.x, b.y + 34, b.label, {
-        fontSize: '13px', color: '#ffffff', fontFamily: 'monospace', fontStyle: 'bold'
+      this.add.text(b.x, b.y + Math.round(bh * 0.4), b.label, {
+        fontSize: '14px', color: '#ffffff', fontFamily: 'monospace', fontStyle: 'bold'
       }).setOrigin(0.5);
-      this.add.text(b.x, b.y + 50, b.desc, {
-        fontSize: '10px', color: '#999999', fontFamily: 'monospace'
+      this.add.text(b.x, b.y + Math.round(bh * 0.6), b.desc, {
+        fontSize: '11px', color: '#cccccc', fontFamily: 'monospace'
       }).setOrigin(0.5);
     }
 
@@ -326,7 +329,8 @@ export class GameScene extends Phaser.Scene {
 
   spawnAllZones() {
     for (const zone of ZONES) {
-      for (const spawn of zone.enemyPool) {
+      const pool = zone.enemyPool || [];
+      for (const spawn of pool) {
         for (let i = 0; i < spawn.count; i++) {
           const { x, y } = this.randomPositionInZone(zone);
           this.spawnSingleEnemy(spawn.type, x, y, zone.id);

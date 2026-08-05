@@ -41,8 +41,11 @@ export class DecorSystem {
   }
 
   spawnDecor(count = 8) {
-    const { x: x1, y: y1, x2, y2 } = this.scene && this.scene.TOWN ? this.scene.TOWN : this.scene.sys.game.config;
-    const bounds = this.scene ? this.scene : null;
+    const town = this.scene && this.scene.TOWN ? this.scene.TOWN : null;
+    const x1 = town ? town.x1 : 0;
+    const y1 = town ? town.y1 : 0;
+    const x2 = town ? town.x2 : (this.scene.sys.game.config.width || 800);
+    const y2 = town ? town.y2 : (this.scene.sys.game.config.height || 600);
 
     for (let i = 0; i < count; i++) {
       const type = ['decor_citizen', 'decor_cart', 'decor_dog'][i % 3];
@@ -50,6 +53,23 @@ export class DecorSystem {
       const y = Phaser.Math.Between(this.scene.TOWN.y1 + 80, this.scene.TOWN.y2 - 80);
       const s = this.scene.physics.add.sprite(x, y, type).setDepth(5 + (i % 4));
       s.setCollideWorldBounds(true);
+      // Taille affichée : garder la même hauteur que le joueur pour cohérence
+      const playerH = (this.scene.player && this.scene.player.sprite) ? this.scene.player.sprite.height : 34;
+      let targetW = Math.round(26 * 1.0);
+      let targetH = Math.round(playerH || 34);
+      if (type === 'decor_cart') {
+        targetW = Math.round(targetH * 1.6); // chars plus larges
+      } else if (type === 'decor_dog') {
+        targetW = Math.round(targetH * 0.6);
+      } else if (type === 'decor_citizen') {
+        targetW = Math.round(targetH * 0.7);
+      }
+      s.setDisplaySize(targetW, targetH);
+      // Ajuste la hitbox physique pour correspondre à l'affichage
+      if (s.body && s.body.setSize) {
+        s.body.setSize(targetW, targetH);
+        s.body.setOffset(-targetW / 2 + s.displayOriginX, -targetH / 2 + s.displayOriginY);
+      }
       s.vx = Phaser.Math.FloatBetween(-0.6, 0.6);
       s.vy = Phaser.Math.FloatBetween(-0.6, 0.6);
       s.speed = Phaser.Math.FloatBetween(8, 28);
