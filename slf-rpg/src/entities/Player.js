@@ -33,6 +33,10 @@ export class Player {
 
     this.gfx = scene.add.graphics();
     this.weaponGfx = scene.add.graphics();
+    // S'assurer que le joueur et ses effets sont rendus au-dessus des bâtiments
+    this.sprite.setDepth(30);
+    this.gfx.setDepth(30);
+    this.weaponGfx.setDepth(30);
 
     // Configuration des touches ZQSD
     this.wasd = scene.input.keyboard.addKeys({
