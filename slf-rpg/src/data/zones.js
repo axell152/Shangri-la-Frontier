@@ -21,12 +21,12 @@ export const BUILDINGS = [
     x: TOWN_CENTER.x, y: TOWN_CENTER.y, functional: false, color: 0x4a8a9a, isDecor: true
   },
 
-  // --- ÎLOT NORD-OUEST ---
+   // --- ÎLOT NORD-OUEST ---
   {
-    id: 'forge', label: 'Forge', desc: 'Réparation d’armes — bientôt',
-    x: TOWN_CENTER.x - 420, y: TOWN_CENTER.y - 320, functional: false, color: 0x8a5a3a,
+    id: 'forge', label: 'Forge', desc: 'Réparation et Fusion d’armes',
+    x: TOWN_CENTER.x - 420, y: TOWN_CENTER.y - 320, functional: true, color: 0x8a5a3a,
     interiorColor: 0x3a2a1f, npcName: 'Forgeron',
-    lines: ['Reviens quand j’aurai remis l’enclume en état.', 'La chaleur, ça forge le caractère.']
+    lines: ['Apportez-moi vos armes à réparer ou à fusionner.', 'Le fer demande de la précision.']
   },
   {
     id: 'boulangerie', label: 'Boulangerie', desc: 'Pains et galettes',
@@ -40,9 +40,10 @@ export const BUILDINGS = [
 
   // --- ÎLOT NORD-EST ---
   {
-    id: 'merchant', label: 'Marchand',
-    x: TOWN_CENTER.x + 420, y: TOWN_CENTER.y - 320,
-    functional: true, color: 0x7a5a3a
+    id: 'echoppe', label: 'Armurier', desc: 'Achat et Vente d’armes',
+    x: TOWN_CENTER.x + 420, y: TOWN_CENTER.y - 320, functional: true, color: 0x3a6b5a,
+    interiorColor: 0x24302a, npcName: 'Commerçant',
+    lines: ['Jetez un œil à mes articles, ou vendez-moi vos prises !', 'De l’or contre du matériel de qualité.']
   },
   {
     id: 'apothicaire', label: 'Apothicaire', desc: 'Remèdes et plantes',
@@ -56,7 +57,7 @@ export const BUILDINGS = [
 
   // --- ÎLOT SUD-OUEST ---
   {
-    id: 'taverne', label: 'Taverne', desc: 'Auberge — point de sauvegarde', savePoint: true,
+    id: 'taverne', label: 'Taverne', desc: 'Auberge', savePoint: true,
     x: TOWN_CENTER.x - 420, y: TOWN_CENTER.y + 320, functional: false, color: 0x6b3a3a,
     interiorColor: 0x3b2416, npcName: 'Aubergiste',
     lines: ['Pas de quête pour l’instant, mais assieds-toi.', 'On raconte des choses sur les ruines à l’ouest...']

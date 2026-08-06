@@ -106,12 +106,37 @@ export class UIScene extends Phaser.Scene {
       </div>
 
       <div class="hud-modal" id="hud-merchant-modal">
-        <h3>Marchand <span class="close-hint">T pour fermer</span></h3>
+        <h3>Boutique du Commerçant <span class="close-hint">T pour fermer</span></h3>
+        <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+          <button id="merchant-tab-buy" style="background:#3d9dff; flex:1;">Achat</button>
+          <button id="merchant-tab-sell" style="background:#222; flex:1;">Vente</button>
+        </div>
         <div style="color:#ffd23d; font-size:13px; margin-bottom:10px;">Or : <span id="hud-merchant-gold">0</span></div>
-        <div class="section-title">Fusion (3 identiques → palier supérieur)</div>
-        <div id="hud-merchant-merge"></div>
-        <div class="section-title">Vendre</div>
-        <div id="hud-merchant-sell"></div>
+        <div id="merchant-content-buy">
+          <div class="section-title">Objets à acheter</div>
+          <div id="hud-merchant-buy-list"></div>
+        </div>
+        <div id="merchant-content-sell" style="display:none;">
+          <div class="section-title">Vendre des objets</div>
+          <div id="hud-merchant-sell"></div>
+        </div>
+      </div>
+
+      <div class="hud-modal" id="hud-forge-modal">
+        <h3>Forge / Enclume <span class="close-hint">T pour fermer</span></h3>
+        <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+          <button id="forge-tab-repair" style="background:#3d9dff; flex:1;">Réparation</button>
+          <button id="forge-tab-fusion" style="background:#222; flex:1;">Fusion</button>
+        </div>
+        <div style="color:#ffd23d; font-size:13px; margin-bottom:10px;">Or : <span id="hud-forge-gold">0</span></div>
+        <div id="forge-content-repair">
+          <div class="section-title">Réparer une arme</div>
+          <div id="hud-forge-repair-list"></div>
+        </div>
+        <div id="forge-content-fusion" style="display:none;">
+          <div class="section-title">Fusion (3 identiques → palier supérieur)</div>
+          <div id="hud-merchant-merge"></div>
+        </div>
       </div>
     `;
     document.getElementById('game-container').appendChild(wrapper);
@@ -129,6 +154,60 @@ export class UIScene extends Phaser.Scene {
     });
   }
 
+  toggleMerchantPanel(open, mode = 'buy') {
+    const modal = this.dom.querySelector('#hud-merchant-modal');
+    modal.classList.toggle('open', open);
+    if (open) {
+      this.setMerchantTab(mode);
+    }
+  }
+
+  setMerchantTab(mode) {
+    const btnBuy = this.dom.querySelector('#merchant-tab-buy');
+    const btnSell = this.dom.querySelector('#merchant-tab-sell');
+    const contentBuy = this.dom.querySelector('#merchant-content-buy');
+    const contentSell = this.dom.querySelector('#merchant-content-sell');
+
+    if (mode === 'buy') {
+      btnBuy.style.background = '#3d9dff';
+      btnSell.style.background = '#222';
+      contentBuy.style.display = 'block';
+      contentSell.style.display = 'none';
+    } else {
+      btnBuy.style.background = '#222';
+      btnSell.style.background = '#3d9dff';
+      contentBuy.style.display = 'none';
+      contentSell.style.display = 'block';
+    }
+  }
+
+  toggleForgePanel(open, mode = 'repair') {
+    const modal = this.dom.querySelector('#hud-forge-modal');
+    modal.classList.toggle('open', open);
+    if (open) {
+      this.setForgeTab(mode);
+    }
+  }
+
+  setForgeTab(mode) {
+    const btnRepair = this.dom.querySelector('#forge-tab-repair');
+    const btnFusion = this.dom.querySelector('#forge-tab-fusion');
+    const contentRepair = this.dom.querySelector('#forge-content-repair');
+    const contentFusion = this.dom.querySelector('#forge-content-fusion');
+
+    if (mode === 'repair') {
+      btnRepair.style.background = '#3d9dff';
+      btnFusion.style.background = '#222';
+      contentRepair.style.display = 'block';
+      contentFusion.style.display = 'none';
+    } else {
+      btnRepair.style.background = '#222';
+      btnFusion.style.background = '#3d9dff';
+      contentRepair.style.display = 'none';
+      contentFusion.style.display = 'block';
+    }
+  }
+  
   render(state) {
     this.state = state;
     const statsEl = this.dom.querySelector('#hud-stats');
