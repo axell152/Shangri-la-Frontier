@@ -468,7 +468,11 @@ export class GameScene extends Phaser.Scene {
     this.emitStatsUpdate();
   }
 
-  if (killed) {
+  onHitEnemy(enemy, damage, isCrit) {
+    const killed = enemy.takeDamage(damage);
+    this.showDamagePopup(enemy.x, enemy.y, damage, isCrit);
+
+    if (killed) {
       const weapon = LootSystem.rollForEnemy(enemy.lootTier);
       if (weapon) this.spawnLootDrop(enemy.x, enemy.y, weapon);
 
@@ -478,7 +482,6 @@ export class GameScene extends Phaser.Scene {
       if (leveledUp) EventBus.emit('level-up', this.player.stats.level);
 
       // 2. Gestion de l'XP de l'arme équipée
-      // On passe par la méthode propre du joueur ou de son gestionnaire d'armes
       if (this.player.weapons && typeof this.player.weapons.addWeaponXp === 'function') {
         const weaponLevelUp = this.player.weapons.addWeaponXp(enemy.xp);
         if (weaponLevelUp) {
@@ -739,3 +742,4 @@ export class GameScene extends Phaser.Scene {
       life: 90
     });
   }
+}
