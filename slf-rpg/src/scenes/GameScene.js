@@ -71,10 +71,14 @@ export class GameScene extends Phaser.Scene {
     this.physics.add.overlap(this.player.sprite, this.enemyGroup, (playerSprite, enemySprite) =>
       this.handleEnemyContact(enemySprite), null, this);
 
-    // --- Écouteurs de base (Équipement, Vente, Fusion, Respawn) ---
+    // --- Écouteurs d'événements globaux unifiés ---
     EventBus.on('equip-weapon', (weaponId) => {
       const weapon = this.player.weapons.equipFromInventory(weaponId);
       if (weapon) this.emitStatsUpdate();
+    });
+
+    EventBus.on('buy-item', (item) => {
+      this.buyItem(item);
     });
 
     EventBus.on('sell-weapon', (weaponId) => {
@@ -84,6 +88,10 @@ export class GameScene extends Phaser.Scene {
         EventBus.emit('loot-log', { type: 'pickup', text: `Vendu pour ${value} or.` });
         this.emitStatsUpdate();
       }
+    });
+
+    EventBus.on('repair-weapon', (weaponId) => {
+      this.repairWeapon(weaponId);
     });
 
     EventBus.on('merge-weapons', (name) => {
@@ -110,7 +118,7 @@ export class GameScene extends Phaser.Scene {
       window.location.reload();
     });
 
-    // --- Écouteurs pour la Forge (Réparation et Fusion) ---
+    // --- États des panneaux (Forge & Commerçant) ---
     this.isForgeOpen = false;
     this.forgeMode = 'repair';
 
@@ -123,7 +131,6 @@ export class GameScene extends Phaser.Scene {
       this.forgeMode = mode;
     });
 
-    // --- Écouteurs pour le Commerçant (Achat et Vente) ---
     this.isMerchantOpen = false;
     this.merchantMode = 'buy';
 
@@ -134,15 +141,6 @@ export class GameScene extends Phaser.Scene {
 
     EventBus.on('merchant-tab', (mode) => {
       this.merchantMode = mode;
-    });
-
-    // --- Écouteurs pour déclencher les actions d'achat / réparation ---
-    EventBus.on('repair-weapon', (weaponId) => {
-      this.repairWeapon(weaponId);
-    });
-
-    EventBus.on('buy-item', (itemTemplate) => {
-      this.buyItem(itemTemplate);
     });
 
     this.emitStatsUpdate();
