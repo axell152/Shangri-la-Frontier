@@ -40,6 +40,9 @@ export class GameScene extends Phaser.Scene {
     
     this.drawWorldMap();
 
+    this.drawWorldMap();
+    this.drawTown();
+    
     this.enemies = [];
     this.enemyGroup = this.physics.add.group();
     this.spawnAllZones();
