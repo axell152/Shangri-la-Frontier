@@ -30,7 +30,7 @@ export class GameScene extends Phaser.Scene {
     this.savePoint = saveBuilding || null;
     this.saveRadius = 96;
 
-       // Marchand : positionné à l'intérieur de son propre bâtiment
+    // Marchand : positionné à l'intérieur de son propre bâtiment
     const merchantBuilding = BUILDINGS.find((b) => b.id === 'marchand' || b.id === 'boutique' || b.id === 'shop');
     const merchantX = merchantBuilding ? merchantBuilding.x : TOWN_CENTER.x + 150;
     const merchantY = merchantBuilding ? merchantBuilding.y : TOWN_CENTER.y;
@@ -41,8 +41,6 @@ export class GameScene extends Phaser.Scene {
     this.inventoryOpen = false;
     this.enterableBuildings = BUILDINGS;
     
-    this.drawWorldMap();
-
     this.drawWorldMap();
     this.drawTown();
     
@@ -73,6 +71,7 @@ export class GameScene extends Phaser.Scene {
     this.physics.add.overlap(this.player.sprite, this.enemyGroup, (playerSprite, enemySprite) =>
       this.handleEnemyContact(enemySprite), null, this);
 
+    // --- Écouteurs de base (Équipement, Vente, Fusion, Respawn) ---
     EventBus.on('equip-weapon', (weaponId) => {
       const weapon = this.player.weapons.equipFromInventory(weaponId);
       if (weapon) this.emitStatsUpdate();
@@ -111,25 +110,17 @@ export class GameScene extends Phaser.Scene {
       window.location.reload();
     });
 
-    this.emitStatsUpdate();
-  }
-
-  emitStatsUpdate() {
-    EventBus.emit('stats-updated', this.buildStatePayload());
-  }
-
-  // --- Écouteurs pour la Forge (Réparation et Fusion) ---
+    // --- Écouteurs pour la Forge (Réparation et Fusion) ---
     this.isForgeOpen = false;
     this.forgeMode = 'repair';
 
     EventBus.on('forge-craft-panel', ({ open, mode }) => {
       this.isForgeOpen = open;
       if (mode) this.forgeMode = mode;
-      // TODO: Activer ou afficher votre interface visuelle de forge / réparation / fusion à l'écran si besoin
     });
 
     EventBus.on('forge-tab', (mode) => {
-      this.forgeMode = mode; // Reçoit 'repair' ou 'fusion' au clic sur l'onglet
+      this.forgeMode = mode;
     });
 
     // --- Écouteurs pour le Commerçant (Achat et Vente) ---
@@ -139,17 +130,30 @@ export class GameScene extends Phaser.Scene {
     EventBus.on('merchant-shop-panel', ({ open, mode }) => {
       this.isMerchantOpen = open;
       if (mode) this.merchantMode = mode;
-      // TODO: Activer ou afficher votre interface visuelle de boutique / achat / vente à l'écran si besoin
     });
 
     EventBus.on('merchant-tab', (mode) => {
-      this.merchantMode = mode; // Reçoit 'buy' ou 'sell' au clic sur l'onglet
+      this.merchantMode = mode;
     });
 
-    // --- LOGIQUE DE RÉPARATION (Pour la Forge) ---
+    // --- Écouteurs pour déclencher les actions d'achat / réparation ---
+    EventBus.on('repair-weapon', (weaponId) => {
+      this.repairWeapon(weaponId);
+    });
+
+    EventBus.on('buy-item', (itemTemplate) => {
+      this.buyItem(itemTemplate);
+    });
+
+    this.emitStatsUpdate();
+  }
+
+  emitStatsUpdate() {
+    EventBus.emit('stats-updated', this.buildStatePayload());
+  }
+
+  // --- LOGIQUE DE RÉPARATION (Pour la Forge) ---
   repairWeapon(weaponId) {
-    // Vérifiez comment vos armes sont stockées (par exemple dans l'inventaire ou équipées)
-    // Ici, on cherche dans l'inventaire ou on applique une fonction de réparation globale
     const weapon = this.player.weapons.inventory.find(w => w.id === weaponId) || 
                    (this.player.weapons.equipped && this.player.weapons.equipped.id === weaponId ? this.player.weapons.equipped : null);
     
@@ -158,15 +162,14 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    const repairCost = 15; // Coût fixe ou calculé selon l'état/rareté
+    const repairCost = 15;
     if (this.player.gold < repairCost) {
       EventBus.emit('loot-log', { type: 'kill', text: "Pas assez d'or pour réparer cette arme !" });
       return;
     }
 
-    // Logique de réparation (remet la durabilité au maximum ou améliore l'état)
     this.player.gold -= repairCost;
-    weapon.durability = weapon.maxDurability || 100; // Si la durabilité existe dans votre structure
+    weapon.durability = weapon.maxDurability || 100;
     
     EventBus.emit('loot-log', { type: 'pickup', text: `Arme réparée pour ${repairCost} or !` });
     this.emitStatsUpdate();
@@ -186,40 +189,8 @@ export class GameScene extends Phaser.Scene {
     EventBus.emit('loot-log', { type: 'pickup', text: `Achat réussi : ${itemTemplate.name} !` });
     this.emitStatsUpdate();
   }
-
-    // Écouteur pour déclencher la réparation depuis un menu ou l'UI de la forge
-    EventBus.on('repair-weapon', (weaponId) => {
-      this.repairWeapon(weaponId);
-    });
-
-    // Écouteur pour déclencher l'achat depuis la boutique du commerçant
-    EventBus.on('buy-item', (itemTemplate) => {
-      this.buyItem(itemTemplate);
-    });
-
-    EventBus.on('merchant-shop-panel', ({ open, mode }) => this.toggleMerchantPanel(open, mode));
-    EventBus.on('forge-craft-panel', ({ open, mode }) => this.toggleForgePanel(open, mode));
-
-    this.dom.querySelector('#merchant-tab-buy').addEventListener('click', () => {
-      this.setMerchantTab('buy');
-      EventBus.emit('merchant-tab', 'buy');
-    });
-    this.dom.querySelector('#merchant-tab-sell').addEventListener('click', () => {
-      this.setMerchantTab('sell');
-      EventBus.emit('merchant-tab', 'sell');
-    });
-
-    this.dom.querySelector('#forge-tab-repair').addEventListener('click', () => {
-      this.setForgeTab('repair');
-      EventBus.emit('forge-tab', 'repair');
-    });
-    this.dom.querySelector('#forge-tab-fusion').addEventListener('click', () => {
-      this.setForgeTab('fusion');
-      EventBus.emit('forge-tab', 'fusion');
-    });
   
-  // Dessine les régions du monde (fond coloré + libellé + chemins en
-  // pointillés depuis le hub), une fois pour toutes au chargement.
+  // Dessine les régions du monde
   drawWorldMap() {
     const g = this.add.graphics();
 
@@ -261,7 +232,6 @@ export class GameScene extends Phaser.Scene {
     g.lineStyle(2, 0xffb200, 0.6);
     g.strokeCircle(x, y, radius);
 
-    // Petit feu de camp au centre, purement décoratif
     g.fillStyle(0x5a4632, 1);
     g.fillRect(x - 10, y + 6, 20, 4);
     g.fillStyle(0xff8c00, 1);
@@ -270,7 +240,6 @@ export class GameScene extends Phaser.Scene {
     g.fillTriangle(x - 3, y + 6, x + 3, y + 6, x, y - 3);
   }
 
-  // Ville praticable : sol distinct, bâtiments, portes vers chaque biome.
   drawTown() {
     const g = this.add.graphics();
     const w = TOWN.x2 - TOWN.x1;
@@ -279,7 +248,6 @@ export class GameScene extends Phaser.Scene {
     g.fillStyle(0x2a2a1f, 1);
     g.fillRect(TOWN.x1, TOWN.y1, w, h);
 
-    // Chemins de terre et place centrale
     g.fillStyle(0x5e5037, 1);
     g.fillRect(TOWN_CENTER.x - 30, TOWN.y1, 60, h);
     g.fillRect(TOWN.x1, TOWN_CENTER.y - 28, w, 56);
@@ -287,7 +255,6 @@ export class GameScene extends Phaser.Scene {
     g.fillStyle(0x4f432f, 1);
     g.fillCircle(TOWN_CENTER.x, TOWN_CENTER.y, 34);
 
-    // Bancs autour de la place
     g.fillStyle(0x60462e, 1);
     const benchY = TOWN_CENTER.y - 120;
     for (let dx of [-120, 120]) {
@@ -296,7 +263,6 @@ export class GameScene extends Phaser.Scene {
       g.fillRect(TOWN_CENTER.x + dx + 14, benchY - 18, 4, 18);
     }
 
-    // Lampadaires le long du chemin principal
     g.fillStyle(0x3c2c20, 1);
     for (let i = 0; i < 4; i++) {
       const px = TOWN_CENTER.x - 180 + i * 120;
@@ -308,7 +274,7 @@ export class GameScene extends Phaser.Scene {
 
     const roadWidth = 18;
     for (const b of BUILDINGS) {
-      if (b.isDecor) continue; // On ne trace pas de route vers la fontaine centrale décorative
+      if (b.isDecor) continue;
       const dx = b.x - TOWN_CENTER.x;
       const dy = b.y - TOWN_CENTER.y;
       if (Math.abs(dx) >= Math.abs(dy)) {
@@ -325,50 +291,41 @@ export class GameScene extends Phaser.Scene {
       fontSize: '24px', color: '#ffd23d', fontFamily: 'monospace', fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    // --- DESSIN DE LA GRANDE FONTAINE CENTRALE (Style Cascade Minecraft) ---
     const fx = TOWN_CENTER.x;
     const fy = TOWN_CENTER.y;
 
-    // 1. Margelle extérieure en pierre grise (socle)
     g.fillStyle(0x5b616b, 1);
     g.fillCircle(fx, fy, 95);
     g.lineStyle(4, 0x3d4249, 1);
     g.strokeCircle(fx, fy, 95);
 
-    // 2. Grand bassin d'eau principal
     g.fillStyle(0x1d6a96, 1);
     g.fillCircle(fx, fy, 82);
 
-    // 3. Premier palier de cascade (intermédiaire)
     g.fillStyle(0x6e7681, 1);
     g.fillCircle(fx, fy, 56);
     g.fillStyle(0x288bc4, 1);
     g.fillCircle(fx, fy, 46);
 
-    // 4. Second palier supérieur
     g.fillStyle(0x8c95a1, 1);
     g.fillCircle(fx, fy, 30);
     g.fillStyle(0x4fbbf7, 1);
     g.fillCircle(fx, fy, 22);
 
-    // 5. Sommet de la fontaine et écume lumineuse
     g.fillStyle(0xa5d6ff, 1);
     g.fillCircle(fx, fy - 4, 12);
     g.fillStyle(0xffffff, 0.9);
     g.fillCircle(fx, fy - 6, 6);
 
-    // Étiquette de la fontaine au centre
     this.add.text(fx, fy + 105, 'Grande Fontaine', {
       fontSize: '13px', color: '#8be9fd', fontFamily: 'monospace', fontStyle: 'bold', backgroundColor: '#000000aa', padding: { x: 4, y: 2 }
     }).setOrigin(0.5);
 
-
-    // Bâtiments de la ville
     for (const b of BUILDINGS) {
-      if (b.isDecor) continue; // Déjà géré par la fontaine
+      if (b.isDecor) continue;
 
-      const bw = 140; // width
-      const bh = 96;  // height
+      const bw = 140;
+      const bh = 96;
       g.fillStyle(b.color, 1);
       g.fillRect(b.x - bw / 2, b.y - bh / 2 + 8, bw, bh - 8);
       g.fillStyle(0x1a1a14, 1);
