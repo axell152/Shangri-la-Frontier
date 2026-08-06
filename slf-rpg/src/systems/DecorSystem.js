@@ -12,24 +12,13 @@ export class DecorSystem {
   _makeTextures() {
     const g = this.scene.add.graphics();
 
-    // Citoyen (petit personnage)
+    // Citoyen (personnage vertical : tête en haut, corps en dessous)
     g.clear();
     g.fillStyle(0xd9c39a, 1);
-    g.fillCircle(8, 4, 4);
+    g.fillCircle(8, 6, 4);
     g.fillStyle(0x6b4f2a, 1);
-    g.fillRect(4, 8, 8, 8);
-    g.generateTexture('decor_citizen', 24, 24);
-
-    // Chariot
-    // (removed cart — ne correspond pas à l'époque)
-
-    // Chien
-    g.clear();
-    g.fillStyle(0x8b5a2b, 1);
-    g.fillRect(2, 8, 12, 6);
-    g.fillStyle(0xd9c39a, 1);
-    g.fillCircle(18, 10, 3);
-    g.generateTexture('decor_dog', 24, 24);
+    g.fillRect(4, 10, 8, 14);
+    g.generateTexture('decor_citizen', 16, 28);
 
     g.destroy();
   }
@@ -42,9 +31,8 @@ export class DecorSystem {
     const y2 = town ? town.y2 : (this.scene.sys.game.config.height || 600);
 
     for (let i = 0; i < count; i++) {
-      // Ne plus utiliser les chars: seulement citoyens et chiens
-      const type = ['decor_citizen', 'decor_dog'][i % 2];
-      // Trouve un point qui n'est pas sur un bâtiment
+      // Uniquement des citoyens
+      const type = 'decor_citizen';
       let x = 0;
       let y = 0;
       const BUILDING_W = 140;
@@ -58,28 +46,20 @@ export class DecorSystem {
       }
       if (!found) { x = this.scene.TOWN_CENTER.x; y = this.scene.TOWN_CENTER.y; }
       const s = this.scene.physics.add.sprite(x, y, type);
-      // Depth: au-dessus du sol mais en-dessous des bâtiments (qui sont à 20)
       s.setDepth(14 + (i % 4));
-      // Ancrage bas-centre pour que l'origine corresponde au sol
       s.setOrigin(0.5, 1);
       s.setVisible(true);
       s.setAngle(0);
       s.setFlipX(false);
       s.setCollideWorldBounds(true);
-      // Taille affichée : quasiment le double de la hauteur du joueur
+
       const playerH = (this.scene.player && this.scene.player.sprite) ? this.scene.player.sprite.height : 34;
       const baseH = Math.round((playerH || 34) * 2.0);
       let targetH = baseH;
-      let targetW = Math.round(baseH * 0.6); // favorise la verticale
-      if (type === 'decor_dog') {
-        targetW = Math.round(baseH * 0.5);
-      } else if (type === 'decor_citizen') {
-        targetW = Math.round(baseH * 0.55);
-      }
+      let targetW = Math.round(baseH * 0.55);
+
       s.setDisplaySize(targetW, targetH);
-      // s.displayOriginX/Y repositionnés après redimension
       s.setOrigin(0.5, 1);
-      // Centre et adapte la hitbox physique
       if (s.body && s.body.setSize) {
         s.body.setSize(targetW, targetH, true);
       }
@@ -91,18 +71,15 @@ export class DecorSystem {
   }
 
   update(time) {
-    // simple wandering AI constrained to town rectangle
     if (!this.group) return;
     this.group.getChildren().forEach((s) => {
       if (!s.body) return;
-      // jitter velocities occasionally
       if (Math.random() < 0.01) {
         s.vx = Phaser.Math.FloatBetween(-0.8, 0.8);
         s.vy = Phaser.Math.FloatBetween(-0.8, 0.8);
       }
       s.body.setVelocity(s.vx * s.speed, s.vy * s.speed);
 
-      // keep inside town
       const tx1 = this.scene.TOWN.x1 + 40;
       const ty1 = this.scene.TOWN.y1 + 40;
       const tx2 = this.scene.TOWN.x2 - 40;
@@ -112,7 +89,6 @@ export class DecorSystem {
       if (s.y < ty1) s.y = ty1 + 2;
       if (s.y > ty2) s.y = ty2 - 2;
 
-      // Empêche les sprites décoratifs de traverser les bâtiments
       const BUILDING_W = 140;
       const BUILDING_H = 96;
       for (const b of (this.scene.BUILDINGS || [])) {
@@ -121,7 +97,6 @@ export class DecorSystem {
         const top = b.y - BUILDING_H / 2;
         const bottom = b.y + BUILDING_H / 2;
         if (s.x >= left && s.x <= right && s.y >= top && s.y <= bottom) {
-          // repousse vers l'extérieur le long du vecteur vitesse
           const nx = s.x - s.vx * s.speed * 2;
           const ny = s.y - s.vy * s.speed * 2;
           s.x = Phaser.Math.Clamp(nx, this.scene.TOWN.x1 + 40, this.scene.TOWN.x2 - 40);
