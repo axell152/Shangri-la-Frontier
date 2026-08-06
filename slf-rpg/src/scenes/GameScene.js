@@ -306,6 +306,11 @@ export class GameScene extends Phaser.Scene {
     }
   } 
 
+  drawMerchant() {
+    const g = this.merchantGfx;
+    if (!g) return;
+    g.clear();
+  }
   
   enterBuilding(building) {
     const returnPos = { x: this.player.x, y: this.player.y };
