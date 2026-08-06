@@ -364,6 +364,7 @@ export class UIScene extends Phaser.Scene {
   }
 
   hex(num) {
-    return '#' + num.toString(16).padStart(6, '0');
+    if (num === undefined || num === null) return '#ffffff'; // Blanc par défaut si non défini
+    return '#' + Number(num).toString(16).padStart(6, '0');
   }
 }

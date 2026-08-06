@@ -5,25 +5,26 @@ export class Enemy {
   constructor(scene, x, y, typeKey) {
     this.scene = scene;
     this.typeKey = typeKey;
-    const def = ENEMY_TYPES[typeKey] || { def: 5, atk: 5, hp: 30, xp: 10, lootTier: 1, speed: 80, size: 28, color: 0x2e8b57 };
+    const def = ENEMY_TYPES[typeKey] || { def: 0, atk: 5, hp: 30, xp: 10, lootTier: 1, speed: 80, size: 28, color: 0x2e8b57, shape: 'humanoid' };
     
-    this.def = def.def;
-    this.atk = def.atk;
-    this.maxHp = def.hp;
-    this.hp = def.hp;
-    this.xp = def.xp;
-    this.lootTier = def.lootTier;
-    this.speed = def.speed;
+    this.def = def;
+    
+    // Ajoute bien les "||" pour empêcher les "undefined" de casser ton jeu
+    this.defense = def.def || 0; 
+    this.atk = def.atk || 5;
+    this.maxHp = def.hp || 30;
+    this.hp = def.hp || 30;
+    this.xp = def.xp || 10;
+    this.lootTier = def.lootTier || 1;
+    this.speed = def.speed || 80;
     this.dead = false;
-    this.defSize = def.size;
-    this.mainColor = def.color;
+    this.defSize = def.size || 28;
+    this.mainColor = def.color || 0x2e8b57;
 
-    // Rectangle invisible pour conserver la physique et les collisions existantes
     this.sprite = scene.add.rectangle(x, y, def.size, def.size, 0x000000, 0);
     scene.physics.add.existing(this.sprite);
     this.sprite.body.setCollideWorldBounds(true);
 
-    // Objet Graphics dédié pour dessiner le monstre cubique
     this.gfx = scene.add.graphics();
 
     this.hpBarBg = scene.add.rectangle(x, y - def.size / 2 - 8, 30, 4, 0x000000).setOrigin(0.5);
@@ -33,8 +34,6 @@ export class Enemy {
     this.nextWanderAt = 0;
     this.animFrame = 0;
 
-    // Créature furtive (ex: Loup des Brumes) : invisible et immobile
-    // jusqu'à ce que le joueur entre dans la portée d'embuscade.
     this.stealthy = !!def.stealthy;
     this.revealed = !this.stealthy;
     if (this.stealthy) {
@@ -43,7 +42,6 @@ export class Enemy {
       this.hpBarBg.setVisible(false);
     }
 
-    // Pattern de boss : attaque en zone télégraphiée avant l'impact.
     this.isBoss = !!def.isBoss;
     this.telegraphState = null;
     this.nextTelegraphAt = null;
@@ -69,14 +67,13 @@ export class Enemy {
         this.hpBar.setVisible(true);
         this.hpBarBg.setVisible(true);
       } else {
-        body.setVelocity(0, 0); // reste immobile et caché en embuscade
+        body.setVelocity(0, 0);
         this.animFrame += 0.15;
         this.drawEnemyBlocks();
         return;
       }
     }
 
-    let isMoving = true;
     if (distToPlayer < 140) {
       const angle = Phaser.Math.Angle.Between(this.x, this.y, playerX, playerY);
       body.setVelocity(Math.cos(angle) * this.speed, Math.sin(angle) * this.speed);
@@ -93,8 +90,6 @@ export class Enemy {
     }
 
     this.animFrame += 0.15;
-
-    // Redessiner le monstre cubique et sa barre de vie
     this.drawEnemyBlocks();
 
     if (this.isBoss) {
@@ -113,50 +108,89 @@ export class Enemy {
     const px = this.sprite.x;
     const py = this.sprite.y;
     let swing = Math.sin(this.animFrame) * 4;
+    const color = this.mainColor;
+    const shape = this.def.shape || 'humanoid';
+    const halfSize = this.defSize / 2;
 
-    // Utilisation de la couleur principale définie dans ton fichier data/enemies.js
-    const mainColor = this.mainColor;
-    const darkColor = 0x111111;
+    if (shape === 'slime') {
+      let squash = Math.sin(this.animFrame * 2) * 3;
+      this.gfx.fillStyle(color, 0.9);
+      this.gfx.fillRect(px - 12, py - 4 + squash, 24, 12 - squash);
+      this.gfx.fillStyle(0xffffff, 0.8);
+      this.gfx.fillRect(px - 4, py, 4, 4);
+      this.gfx.fillRect(px + 2, py, 4, 4);
+    } 
+    else if (shape === 'bat') {
+      let flap = Math.cos(this.animFrame * 4) * 8;
+      this.gfx.fillStyle(color, 1);
+      this.gfx.fillRect(px - 4, py - 4, 8, 8);
+      this.gfx.fillStyle(0x331144, 1);
+      this.gfx.fillRect(px - 14, py - 6 + flap, 10, 4);
+      this.gfx.fillRect(px + 4, py - 6 + flap, 10, 4);
+    }
+    else if (shape === 'wolf') {
+      this.gfx.fillStyle(color, 1);
+      this.gfx.fillRect(px - 12, py - 6, 24, 10);
+      this.gfx.fillRect(px + 6, py - 14, 6, 8);
+      this.gfx.fillRect(px - 14, py - 2, 4, 8);
+      this.gfx.fillRect(px + 10, py - 2, 4, 8);
+    }
+    else if (shape === 'spider') {
+      this.gfx.fillStyle(color, 1);
+      this.gfx.fillRect(px - 10, py - 8, 20, 12);
+      this.gfx.fillStyle(0xff0000, 1);
+      this.gfx.fillRect(px - 4, py - 6, 2, 2);
+      this.gfx.fillRect(px + 2, py - 6, 2, 2);
+      this.gfx.lineStyle(2, color, 1);
+      this.gfx.lineBetween(px - 10, py, px - 18, py + 6 + swing);
+      this.gfx.lineBetween(px + 10, py, px + 18, py + 6 - swing);
+    }
+    else if (shape === 'golem' || shape === 'orc' || shape === 'mech_boss' || shape === 'treant' || shape === 'orc_warlord' || shape === 'queen_slime') {
+      this.gfx.fillStyle(0x111111, 1);
+      this.gfx.fillRect(px - 10 + swing, py + 4, 8, 16);
+      this.gfx.fillRect(px + 2 - swing, py + 4, 8, 16);
 
-    // --- 1. JAMBES ---
-    this.gfx.fillStyle(darkColor, 1);
-    this.gfx.fillRect(px - 6 + swing, py + 4, 5, 12);
-    this.gfx.fillRect(px + 1 - swing, py + 4, 5, 12);
+      this.gfx.fillStyle(color, 1);
+      this.gfx.fillRect(px - halfSize, py - halfSize, this.defSize, this.defSize);
+      
+      this.gfx.fillStyle(0xffcc00, 1);
+      this.gfx.fillRect(px - halfSize - 4, py - halfSize, 6, 10);
+      this.gfx.fillRect(px + halfSize - 2, py - halfSize, 6, 10);
 
-    // --- 2. CORPS / TORSE ---
-    this.gfx.fillStyle(mainColor, 1);
-    this.gfx.fillRect(px - 10, py - 10, 20, 16);
+      this.gfx.fillStyle(0xff0000, 1);
+      this.gfx.fillRect(px - 6, py - 8, 4, 4);
+      this.gfx.fillRect(px + 2, py - 8, 4, 4);
+    }
+    else {
+      this.gfx.fillStyle(0x111111, 1);
+      this.gfx.fillRect(px - 6 + swing, py + 4, 5, 12);
+      this.gfx.fillRect(px + 1 - swing, py + 4, 5, 12);
 
-    // --- 3. BRAS ---
-    this.gfx.fillRect(px - 14 - swing, py - 10, 4, 10);
-    this.gfx.fillRect(px + 10 + swing, py - 10, 4, 10);
+      this.gfx.fillStyle(color, 1);
+      this.gfx.fillRect(px - 10, py - 10, 20, 16);
+      this.gfx.fillRect(px - 14 - swing, py - 10, 4, 10);
+      this.gfx.fillRect(px + 10 + swing, py - 10, 4, 10);
+      this.gfx.fillRect(px - 8, py - 22, 16, 12);
 
-    // --- 4. TÊTE & YEUX MENAÇANTS ---
-    this.gfx.fillStyle(mainColor, 1);
-    this.gfx.fillRect(px - 8, py - 22, 16, 12);
-
-    // Petits yeux rouges/lumineux pour contraster
-    this.gfx.fillStyle(0xff0000, 1);
-    this.gfx.fillRect(px - 4, py - 18, 3, 3);
-    this.gfx.fillRect(px + 1, py - 18, 3, 3);
+      this.gfx.fillStyle(0xff0000, 1);
+      this.gfx.fillRect(px - 4, py - 18, 3, 3);
+      this.gfx.fillRect(px + 1, py - 18, 3, 3);
+    }
   }
 
-  // Pattern de boss "façon Shangri-La Frontier" : une zone de danger
-  // s'affiche et grossit pendant ~1s avant l'impact. Le joueur doit en
-  // sortir avant la fin, sinon il encaisse un gros coup.
   updateBossTelegraph(time, playerX, playerY, damagePlayer, playerInSafeZone) {
-    const AGGRO_RANGE = 260; // le boss ne charge que si le joueur est dans cette portée
+    const AGGRO_RANGE = 260;
 
     if (!this.telegraphState) {
       if (this.nextTelegraphAt === null) {
-        this.nextTelegraphAt = time + 2500; // délai avant la toute première charge
+        this.nextTelegraphAt = time + 2500;
       }
       const distToPlayer = Phaser.Math.Distance.Between(this.x, this.y, playerX, playerY);
       if (time > this.nextTelegraphAt && distToPlayer <= AGGRO_RANGE && !playerInSafeZone) {
         this.telegraphState = {
           startTime: time,
           duration: 1100,
-          x: playerX, // la cible se verrouille sur la position du joueur au moment du cast
+          x: playerX,
           y: playerY,
           maxRadius: 100
         };
@@ -170,11 +204,11 @@ export class Enemy {
     if (progress >= 1) {
       const dist = Phaser.Math.Distance.Between(playerX, playerY, this.telegraphState.x, this.telegraphState.y);
       if (dist <= this.telegraphState.maxRadius && damagePlayer && !playerInSafeZone) {
-        damagePlayer(this.atk * 2.2); // frappe lourde si le joueur n'a pas bougé/fui à temps
+        damagePlayer(this.atk * 2.2);
       }
       this.telegraphGfx.clear();
       this.telegraphState = null;
-      this.nextTelegraphAt = time + 2800; // cooldown avant la prochaine charge
+      this.nextTelegraphAt = time + 2800;
     }
   }
 
@@ -183,11 +217,9 @@ export class Enemy {
     const state = this.telegraphState;
     const r = state.maxRadius * progress;
 
-    // Disque qui se remplit progressivement (plus opaque = plus proche de l'impact)
     this.telegraphGfx.fillStyle(0xff3d5a, 0.12 + progress * 0.33);
     this.telegraphGfx.fillCircle(state.x, state.y, r);
 
-    // Contour de la zone finale, visible dès le début pour prévenir le joueur
     this.telegraphGfx.lineStyle(2, 0xff0000, 0.9);
     this.telegraphGfx.strokeCircle(state.x, state.y, state.maxRadius);
   }

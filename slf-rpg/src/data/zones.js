@@ -132,8 +132,9 @@ export const ZONES = [
     radiusX: BIOME_RADIUS_X, radiusY: BIOME_RADIUS_Y,
     color: 0x5a7a8a,
     enemyPool: [
-      { type: 'golem_debris', count: 12 },
-      { type: 'gardien_rouille', count: 1 }
+      { type: 'golem_debris', count: 10 },
+      { type: 'spectre_ancien', count: 6 },
+      { type: 'gardien_rouille', count: 1 } // Le Boss final des ruines
     ]
   },
   {
@@ -143,7 +144,11 @@ export const ZONES = [
     x: TOWN_CENTER.x, y: TOWN.y1 - GAP - BIOME_RADIUS_Y,
     radiusX: BIOME_RADIUS_X, radiusY: BIOME_RADIUS_Y,
     color: 0x2a7a3a,
-    enemyPool: [{ type: 'loup_spectral', count: 15 }]
+    enemyPool: [
+      { type: 'loup_spectral', count: 10 },
+      { type: 'arache_foret', count: 6 },
+      { type: 'boss_foret', count: 1 } // Le Boss de la forêt
+    ]
   },
   {
     id: 'marais_brumes',
@@ -152,7 +157,11 @@ export const ZONES = [
     x: TOWN_CENTER.x, y: TOWN.y2 + GAP + BIOME_RADIUS_Y,
     radiusX: BIOME_RADIUS_X, radiusY: BIOME_RADIUS_Y,
     color: 0x4a7a5a,
-    enemyPool: [{ type: 'slime', count: 20 }]
+    enemyPool: [
+      { type: 'slime', count: 12 },
+      { type: 'vampire_bat', count: 8 },
+      { type: 'boss_marais', count: 1 } // Le Boss du marais
+    ]
   },
   {
     id: 'terres_ecarlates',
@@ -161,6 +170,10 @@ export const ZONES = [
     x: TOWN.x2 + GAP + BIOME_RADIUS_X, y: TOWN_CENTER.y,
     radiusX: BIOME_RADIUS_X, radiusY: BIOME_RADIUS_Y,
     color: 0xd98a3d,
-    enemyPool: [{ type: 'gobelin', count: 18 }]
+    enemyPool: [
+      { type: 'gobelin', count: 10 },
+      { type: 'orc_guerrier', count: 6 },
+      { type: 'boss_desert', count: 1 } // Le Boss du désert
+    ]
   }
 ];

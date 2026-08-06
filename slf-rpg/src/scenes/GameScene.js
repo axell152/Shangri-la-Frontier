@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { Player } from '../entities/Player.js';
-import { Enemy } from '../entities/Enemy.js';
+import { Enemy } from '../entities/Enemy.jsx';
 import { LootSystem } from '../systems/LootSystem.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
 import { EventBus } from '../EventBus.js';
