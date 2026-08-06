@@ -40,7 +40,7 @@ export const BUILDINGS = [
 
   // --- ÎLOT NORD-EST ---
   {
-    id: 'echoppe', label: 'Échoppe du Commerçant', desc: 'Achat et Vente d’objets',
+    id: 'echoppe', label: 'Armurier', desc: 'Achat et Vente d’armes',
     x: TOWN_CENTER.x + 420, y: TOWN_CENTER.y - 320, functional: true, color: 0x3a6b5a,
     interiorColor: 0x24302a, npcName: 'Commerçant',
     lines: ['Jetez un œil à mes articles, ou vendez-moi vos prises !', 'De l’or contre du matériel de qualité.']
