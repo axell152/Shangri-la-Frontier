@@ -33,6 +33,16 @@ export class Enemy {
     this.nextWanderAt = 0;
     this.animFrame = 0;
 
+    // Créature furtive (ex: Loup des Brumes) : invisible et immobile
+    // jusqu'à ce que le joueur entre dans la portée d'embuscade.
+    this.stealthy = !!def.stealthy;
+    this.revealed = !this.stealthy;
+    if (this.stealthy) {
+      this.gfx.setAlpha(0.1);
+      this.hpBar.setVisible(false);
+      this.hpBarBg.setVisible(false);
+    }
+
     // Pattern de boss : attaque en zone télégraphiée avant l'impact.
     this.isBoss = !!def.isBoss;
     this.telegraphState = null;
@@ -50,6 +60,21 @@ export class Enemy {
 
     const distToPlayer = Phaser.Math.Distance.Between(this.x, this.y, playerX, playerY);
     const body = this.sprite.body;
+
+    if (this.stealthy && !this.revealed) {
+      const AMBUSH_RANGE = 70;
+      if (distToPlayer <= AMBUSH_RANGE) {
+        this.revealed = true;
+        this.gfx.setAlpha(1);
+        this.hpBar.setVisible(true);
+        this.hpBarBg.setVisible(true);
+      } else {
+        body.setVelocity(0, 0); // reste immobile et caché en embuscade
+        this.animFrame += 0.15;
+        this.drawEnemyBlocks();
+        return;
+      }
+    }
 
     let isMoving = true;
     if (distToPlayer < 140) {

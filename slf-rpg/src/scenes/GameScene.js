@@ -4,10 +4,9 @@ import { Enemy } from '../entities/Enemy.js';
 import { LootSystem } from '../systems/LootSystem.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
 import { EventBus } from '../EventBus.js';
-import { WORLD_W, WORLD_H, TOWN, TOWN_CENTER, BUILDINGS, GATES, ZONES } from '../data/zones.js';
-import { DecorSystem } from '../systems/DecorSystem.js';
+import { WORLD_W, WORLD_H, HUB, ZONES } from '../data/zones.js';
 
-const GATE_DIRECTIONS = { north: [0, -1], south: [0, 1], east: [1, 0], west: [-1, 0] };
+const HUB_LINE_COLOR = 0xffd23d;
 
 export class GameScene extends Phaser.Scene {
   constructor() {
@@ -24,26 +23,20 @@ export class GameScene extends Phaser.Scene {
 
     this.add.grid(WORLD_W / 2, WORLD_H / 2, WORLD_W, WORLD_H, 40, 40, 0x14141f, 1, 0x1e1e2c, 1);
 
+    // Safe zone (Havre-du-Départ) : seul endroit où sauvegarder, manuellement (touche F).
+    this.safeZone = { x: HUB.x, y: HUB.y, radius: HUB.radius };
     this.inSafeZone = false;
     const saveBuilding = BUILDINGS.find((b) => b.savePoint);
     this.savePoint = saveBuilding || null;
     this.saveRadius = 96;
 
-    const merchantBuilding = BUILDINGS.find((b) => b.functional);
-    this.merchant = { x: merchantBuilding.x, y: merchantBuilding.y, radius: 55 };
+    // Marchand : à l'intérieur de la safe zone, vente et fusion d'armes (touche T).
+    this.merchant = { x: HUB.x + 45, y: HUB.y - 20, radius: 45 };
     this.nearMerchant = false;
     this.merchantPanelOpen = false;
     this.inventoryOpen = false;
 
-    this.enterableBuildings = BUILDINGS.filter((b) => !b.functional);
-    this.nearBuilding = null;
-
     this.drawWorldMap();
-    this.drawTown();
-
-    // système de décor (piétons, chariots, chiens)
-    this.decorSystem = new DecorSystem(this);
-    this.decorSystem.spawnDecor(14);
 
     this.enemies = [];
     this.enemyGroup = this.physics.add.group();
@@ -52,7 +45,7 @@ export class GameScene extends Phaser.Scene {
     this.lootDrops = [];
     this.projectiles = [];
 
-    this.player = new Player(this, TOWN_CENTER.x, TOWN_CENTER.y);
+    this.player = new Player(this, HUB.x, HUB.y);
     this.cameras.main.startFollow(this.player.sprite, true, 0.1, 0.1);
 
     const save = SaveSystem.load();
@@ -117,22 +110,56 @@ export class GameScene extends Phaser.Scene {
     EventBus.emit('stats-updated', this.buildStatePayload());
   }
 
-  // Régions sauvages (biomes) : fond coloré + libellé, dessinés une fois.
+  // Dessine les régions du monde (fond coloré + libellé + chemins en
+  // pointillés depuis le hub), une fois pour toutes au chargement.
   drawWorldMap() {
     const g = this.add.graphics();
+
     for (const zone of ZONES) {
-      g.fillStyle(zone.color, 0.16);
+      g.lineStyle(2, HUB_LINE_COLOR, 0.25);
+      g.beginPath();
+      g.moveTo(HUB.x, HUB.y);
+      g.lineTo(zone.x, zone.y);
+      g.strokePath();
+    }
+
+    for (const zone of ZONES) {
+      g.fillStyle(zone.color, zone.locked ? 0.12 : 0.22);
       g.fillEllipse(zone.x, zone.y, zone.radiusX * 2, zone.radiusY * 2);
-      g.lineStyle(2, zone.color, 0.4);
+      g.lineStyle(2, zone.color, zone.locked ? 0.3 : 0.55);
       g.strokeEllipse(zone.x, zone.y, zone.radiusX * 2, zone.radiusY * 2);
 
-      this.add.text(zone.x, zone.y - 12, zone.label, {
-        fontSize: '26px', color: '#ffffff', fontFamily: 'monospace', fontStyle: 'bold'
-      }).setOrigin(0.5).setAlpha(0.5);
-      this.add.text(zone.x, zone.y + 18, zone.flavor, {
-        fontSize: '15px', color: '#cccccc', fontFamily: 'monospace'
-      }).setOrigin(0.5).setAlpha(0.4);
+      const label = this.add.text(zone.x, zone.y - 12, zone.label, {
+        fontSize: '20px', color: zone.locked ? '#888888' : '#ffffff', fontFamily: 'monospace', fontStyle: 'bold'
+      }).setOrigin(0.5).setAlpha(0.85);
+
+      const subLabel = zone.locked ? zone.lockedReason : zone.flavor;
+      this.add.text(zone.x, zone.y + 14, subLabel, {
+        fontSize: '13px', color: zone.locked ? '#666666' : '#cccccc', fontFamily: 'monospace'
+      }).setOrigin(0.5).setAlpha(0.75);
     }
+
+    this.add.text(HUB.x, HUB.y - HUB.radius - 22, HUB.label, {
+      fontSize: '18px', color: '#ffd23d', fontFamily: 'monospace', fontStyle: 'bold'
+    }).setOrigin(0.5);
+  }
+
+  drawSafeZone() {
+    const g = this.safeZoneGfx;
+    const { x, y, radius } = this.safeZone;
+    g.clear();
+    g.fillStyle(0xffb200, 0.08);
+    g.fillCircle(x, y, radius);
+    g.lineStyle(2, 0xffb200, 0.6);
+    g.strokeCircle(x, y, radius);
+
+    // Petit feu de camp au centre, purement décoratif
+    g.fillStyle(0x5a4632, 1);
+    g.fillRect(x - 10, y + 6, 20, 4);
+    g.fillStyle(0xff8c00, 1);
+    g.fillTriangle(x - 7, y + 6, x + 7, y + 6, x, y - 10);
+    g.fillStyle(0xffd23d, 1);
+    g.fillTriangle(x - 3, y + 6, x + 3, y + 6, x, y - 3);
   }
 
   // Ville praticable : sol distinct, bâtiments, portes vers chaque biome.
@@ -327,37 +354,27 @@ export class GameScene extends Phaser.Scene {
     if (ok) EventBus.emit('save-flash');
   }
 
-  isInTown(x, y) {
-    return x >= TOWN.x1 && x <= TOWN.x2 && y >= TOWN.y1 && y <= TOWN.y2;
-  }
-
-  isInSavePoint(x, y) {
-    if (!this.savePoint) return false;
-    return Phaser.Math.Distance.Between(x, y, this.savePoint.x, this.savePoint.y) <= this.saveRadius;
-  }
-
-  // Repousse un point hors de la ville, vers le bord le plus proche.
-  pushOutOfTown(x, y) {
-    const distLeft = x - TOWN.x1;
-    const distRight = TOWN.x2 - x;
-    const distTop = y - TOWN.y1;
-    const distBottom = TOWN.y2 - y;
-    const min = Math.min(distLeft, distRight, distTop, distBottom);
-
-    if (min === distLeft) return { x: TOWN.x1 - 6, y };
-    if (min === distRight) return { x: TOWN.x2 + 6, y };
-    if (min === distTop) return { x, y: TOWN.y1 - 6 };
-    return { x, y: TOWN.y2 + 6 };
-  }
-
+  // Position aléatoire dans une zone donnée (ou dans tout le monde si
+  // aucune zone n'est précisée), en évitant toujours la safe zone.
   randomPositionInZone(zone) {
-    if (!zone) return { x: Phaser.Math.Between(100, WORLD_W - 100), y: Phaser.Math.Between(100, WORLD_H - 100) };
-    const angle = Math.random() * Math.PI * 2;
-    const r = Math.sqrt(Math.random());
-    return {
-      x: zone.x + Math.cos(angle) * zone.radiusX * r,
-      y: zone.y + Math.sin(angle) * zone.radiusY * r
-    };
+    let x, y;
+    let attempts = 0;
+    do {
+      if (zone) {
+        const angle = Math.random() * Math.PI * 2;
+        const r = Math.random();
+        x = zone.x + Math.cos(angle) * zone.radiusX * r;
+        y = zone.y + Math.sin(angle) * zone.radiusY * r;
+      } else {
+        x = Phaser.Math.Between(100, WORLD_W - 100);
+        y = Phaser.Math.Between(100, WORLD_H - 100);
+      }
+      attempts++;
+    } while (
+      Phaser.Math.Distance.Between(x, y, this.safeZone.x, this.safeZone.y) < this.safeZone.radius + 40 &&
+      attempts < 20
+    );
+    return { x, y };
   }
 
   spawnSingleEnemy(typeKey, x, y, zoneId) {
@@ -370,8 +387,8 @@ export class GameScene extends Phaser.Scene {
 
   spawnAllZones() {
     for (const zone of ZONES) {
-      const pool = zone.enemyPool || [];
-      for (const spawn of pool) {
+      if (zone.locked) continue;
+      for (const spawn of zone.enemyPool) {
         for (let i = 0; i < spawn.count; i++) {
           const { x, y } = this.randomPositionInZone(zone);
           this.spawnSingleEnemy(spawn.type, x, y, zone.id);
@@ -417,7 +434,7 @@ export class GameScene extends Phaser.Scene {
       EventBus.emit('loot-log', { type: 'kill', text: 'Aucune sauvegarde trouvée — nouveau départ.' });
     }
 
-    this.player.sprite.setPosition(TOWN_CENTER.x, TOWN_CENTER.y);
+    this.player.sprite.setPosition(HUB.x, HUB.y);
     this.player.invulnerableUntil = this.time.now + 1200;
     this.player.hitFlashUntil = 0;
     this.emitStatsUpdate();
@@ -587,7 +604,8 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    const inZoneNow = this.isInSavePoint(this.player.x, this.player.y);
+    const distToSafeZone = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.safeZone.x, this.safeZone.y);
+    const inZoneNow = distToSafeZone <= this.safeZone.radius;
     if (inZoneNow !== this.inSafeZone) {
       this.inSafeZone = inZoneNow;
       EventBus.emit('safe-zone-status', this.inSafeZone);
