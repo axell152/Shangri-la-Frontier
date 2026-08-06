@@ -7,7 +7,10 @@ export class Enemy {
     this.typeKey = typeKey;
     const def = ENEMY_TYPES[typeKey] || { def: 5, atk: 5, hp: 30, xp: 10, lootTier: 1, speed: 80, size: 28, color: 0x2e8b57 };
     
-    this.def = def.def;
+    // On stocke l'objet complet de config dans une autre propriété si besoin, 
+    // et on garde bien un nombre pour la défense !
+    this.enemyDef = def; 
+    this.defense = def.def;
     this.atk = def.atk;
     this.maxHp = def.hp;
     this.hp = def.hp;
@@ -17,7 +20,6 @@ export class Enemy {
     this.dead = false;
     this.defSize = def.size;
     this.mainColor = def.color;
-    this.def = def;
 
     this.sprite = scene.add.rectangle(x, y, def.size, def.size, 0x000000, 0);
     scene.physics.add.existing(this.sprite);
