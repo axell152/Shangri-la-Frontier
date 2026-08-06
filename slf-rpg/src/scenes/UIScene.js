@@ -231,11 +231,34 @@ export class UIScene extends Phaser.Scene {
       const durabilityText = isFinite(w.durability) ? `${w.durability}/${w.maxDurability}` : '∞';
       const durabilityPct = isFinite(w.durability) ? Math.max(0, (w.durability / w.maxDurability) * 100) : 100;
       const durabilityColor = durabilityPct > 40 ? '#9dff9d' : durabilityPct > 15 ? '#ffd23d' : '#ff3d5a';
+      
+      // --- AJOUT : Calcul de l'XP de l'arme et de ses compétences ---
+      const weaponLevel = w.level || 1;
+      const weaponXp = w.xp || 0;
+      const weaponXpToNext = w.xpToNext || 100;
+      const weaponXpPct = Math.max(0, (weaponXp / weaponXpToNext) * 100);
+
+      let skillsHtml = '';
+      if (w.unlockedSkills && w.unlockedSkills.length > 0) {
+        skillsHtml = `<div style="font-size: 10px; color: #ffd23d; margin-top: 6px; border-top: 1px solid #333; padding-top: 4px;">Compétences :</div>`;
+        w.unlockedSkills.forEach((skill, index) => {
+          const keyName = index === 0 ? 'Touche 1' : 'Touche 2';
+          skillsHtml += `<div style="font-size: 9px; color: #b14dff;">[${keyName}] ${skill.name}</div>`;
+        });
+      }
+      // -------------------------------------------------------------
+
       equipEl.innerHTML = `
-        <div style="font-size: 11px; color: #aaa; margin-bottom: 2px;">Arme équipée</div>
+        <div style="font-size: 11px; color: #aaa; margin-bottom: 2px;">Arme (Niv. ${weaponLevel})</div>
         <div class="rarity" style="color:${this.hex(w.color)}">${w.rarityLabel} ${w.name}</div>
         <div style="font-size: 11px; margin-top: 4px;">ATK ${w.atk} · Portée ${w.range} · Crit ${(w.crit * 100).toFixed(0)}%</div>
         <div style="font-size: 11px; color:${durabilityColor}; margin-top: 2px;">Durabilité : ${durabilityText}</div>
+        
+        <!-- --- AJOUT : Barre d'XP de l'arme --- -->
+        <div class="bar-bg" style="margin: 6px 0 2px 0;"><div class="bar-fill" style="width:${weaponXpPct}%; background: #b14dff;"></div></div>
+        <div style="font-size: 10px; color: #b14dff;">XP Arme : ${weaponXp} / ${weaponXpToNext}</div>
+        ${skillsHtml}
+        <!-- ----------------------------------- -->
       `;
     } else {
       equipEl.innerHTML = '<div>Aucune arme</div>';
