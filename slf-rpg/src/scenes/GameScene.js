@@ -36,6 +36,8 @@ export class GameScene extends Phaser.Scene {
     this.merchantPanelOpen = false;
     this.inventoryOpen = false;
 
+    this.enterableBuildings = BUILDINGS;
+    
     this.drawWorldMap();
 
     this.enemies = [];
