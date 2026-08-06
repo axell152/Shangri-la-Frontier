@@ -145,6 +145,57 @@ export class GameScene extends Phaser.Scene {
     EventBus.on('merchant-tab', (mode) => {
       this.merchantMode = mode; // Reçoit 'buy' ou 'sell' au clic sur l'onglet
     });
+
+    // --- LOGIQUE DE RÉPARATION (Pour la Forge) ---
+  repairWeapon(weaponId) {
+    // Vérifiez comment vos armes sont stockées (par exemple dans l'inventaire ou équipées)
+    // Ici, on cherche dans l'inventaire ou on applique une fonction de réparation globale
+    const weapon = this.player.weapons.inventory.find(w => w.id === weaponId) || 
+                   (this.player.weapons.equipped && this.player.weapons.equipped.id === weaponId ? this.player.weapons.equipped : null);
+    
+    if (!weapon) {
+      EventBus.emit('loot-log', { type: 'kill', text: "Arme introuvable pour la réparation." });
+      return;
+    }
+
+    const repairCost = 15; // Coût fixe ou calculé selon l'état/rareté
+    if (this.player.gold < repairCost) {
+      EventBus.emit('loot-log', { type: 'kill', text: "Pas assez d'or pour réparer cette arme !" });
+      return;
+    }
+
+    // Logique de réparation (remet la durabilité au maximum ou améliore l'état)
+    this.player.gold -= repairCost;
+    weapon.durability = weapon.maxDurability || 100; // Si la durabilité existe dans votre structure
+    
+    EventBus.emit('loot-log', { type: 'pickup', text: `Arme réparée pour ${repairCost} or !` });
+    this.emitStatsUpdate();
+  }
+
+  // --- LOGIQUE D'ACHAT (Pour le Commerçant - Onglet Achat) ---
+  buyItem(itemTemplate) {
+    const cost = itemTemplate.cost || 50;
+    if (this.player.gold < cost) {
+      EventBus.emit('loot-log', { type: 'kill', text: "Vous n'avez pas assez d'or pour acheter ceci." });
+      return;
+    }
+
+    this.player.gold -= cost;
+    this.player.weapons.addToInventory(itemTemplate);
+    
+    EventBus.emit('loot-log', { type: 'pickup', text: `Achat réussi : ${itemTemplate.name} !` });
+    this.emitStatsUpdate();
+  }
+
+    // Écouteur pour déclencher la réparation depuis un menu ou l'UI de la forge
+    EventBus.on('repair-weapon', (weaponId) => {
+      this.repairWeapon(weaponId);
+    });
+
+    // Écouteur pour déclencher l'achat depuis la boutique du commerçant
+    EventBus.on('buy-item', (itemTemplate) => {
+      this.buyItem(itemTemplate);
+    });
   
   // Dessine les régions du monde (fond coloré + libellé + chemins en
   // pointillés depuis le hub), une fois pour toutes au chargement.
