@@ -358,7 +358,7 @@ export class Player {
         if (enemy.dead) continue;
         const dist = Phaser.Math.Distance.Between(this.x, this.y, enemy.x, enemy.y);
         if (dist <= range) {
-          const enemyDamage = Math.max(1, damage - enemy.def);
+          const enemyDamage = Math.max(1, damage - enemy.defense);
           if (onHitEnemy) onHitEnemy(enemy, enemyDamage, isCrit);
         }
       }
