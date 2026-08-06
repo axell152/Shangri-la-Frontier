@@ -46,6 +46,12 @@ export class Player {
       right: Phaser.Input.Keyboard.KeyCodes.D
     });
 
+    // --- AJOUT : Configuration des touches 1 et 2 pour les compétences
+    this.skillKeys = scene.input.keyboard.addKeys({
+      skill1: Phaser.Input.Keyboard.KeyCodes.ONE,
+      skill2: Phaser.Input.Keyboard.KeyCodes.TWO
+    });
+    
     // Écoute du clic gauche de la souris pour attaquer
     scene.input.on('pointerdown', (pointer) => {
       if (pointer.leftButtonDown()) {
@@ -62,6 +68,14 @@ export class Player {
     this.scene.enemiesRef = enemies;
     this.scene.onHitEnemyRef = onHitEnemy;
 
+    // --- AJOUT : Vérification de l'utilisation des compétences ---
+    if (Phaser.Input.Keyboard.JustDown(this.skillKeys.skill1)) {
+      this.useWeaponSkill(1);
+    }
+    if (Phaser.Input.Keyboard.JustDown(this.skillKeys.skill2)) {
+      this.useWeaponSkill(2);
+    }
+    
     const body = this.sprite.body;
     let vx = 0;
     let vy = 0;
@@ -395,6 +409,47 @@ export class Player {
     }
   }
 
+useWeaponSkill(slotIndex) {
+    const weapon = this.weapons.equipped;
+    if (!weapon || !weapon.unlockedSkills || !weapon.unlockedSkills[slotIndex - 1]) {
+      return; // Aucune compétence débloquée à cet emplacement
+    }
+
+    const skill = weapon.unlockedSkills[slotIndex - 1];
+    const enemies = this.scene.enemiesRef || [];
+    const onHitEnemy = this.scene.onHitEnemyRef;
+
+    // Exemple de compétence : Onde de choc (Touche 1)
+    if (skill.id === 'shockwave') {
+      const radius = 120;
+      for (const enemy of enemies) {
+        if (enemy.dead) continue;
+        const dist = Phaser.Math.Distance.Between(this.x, this.y, enemy.x, enemy.y);
+        if (dist <= radius) {
+          const dmg = Math.max(1, (this.weapons.attackDamage + this.stats.totalAtk) * 2 - enemy.defense);
+          if (onHitEnemy) onHitEnemy(enemy, dmg, true); // Critique garanti
+        }
+      }
+
+      // Effet visuel de l'onde de choc
+      const gfx = this.scene.add.graphics();
+      gfx.setDepth(35);
+      let r = 20;
+      this.scene.tweens.add({
+        targets: { radius: 20 },
+        radius: radius,
+        duration: 300,
+        onUpdate: (tween, target) => {
+          gfx.clear();
+          gfx.lineStyle(3, weapon.color || 0xb14dff, 1 - (target.radius / radius));
+          gfx.strokeCircle(this.x, this.y, target.radius);
+        },
+        onComplete: () => gfx.destroy()
+      });
+    }
+    // Tu pourras ajouter d'autres `else if (skill.id === 'autre_competence')` ici par la suite.
+  }
+  
   // Renvoie false si le coup est ignoré (encore invulnérable), sinon un
   // objet { taken, damage, died }.
   takeDamage(amount, time) {
