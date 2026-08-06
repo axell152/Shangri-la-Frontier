@@ -1,7 +1,5 @@
 import Phaser from 'phaser';
 
-// Système léger de décor : crée des textures dynamiques (simulant des PNG)
-// et fait se promener des sprites décoratifs dans la ville.
 export class DecorSystem {
   constructor(scene) {
     this.scene = scene;
@@ -12,13 +10,30 @@ export class DecorSystem {
   _makeTextures() {
     const g = this.scene.add.graphics();
 
-    // Citoyen (personnage vertical : tête en haut, corps en dessous)
-    g.clear();
-    g.fillStyle(0xd9c39a, 1);
-    g.fillCircle(8, 6, 4);
-    g.fillStyle(0x6b4f2a, 1);
-    g.fillRect(4, 10, 8, 14);
-    g.generateTexture('decor_citizen', 16, 28);
+    // On crée plusieurs variantes de couleurs de vêtements pour les PNJ
+    const shirtColors = [0x2e6db4, 0xb42e2e, 0x2eb44f, 0xb48b2e, 0x8b2eb4, 0xb42ea0];
+
+    shirtColors.forEach((color, index) => {
+      g.clear();
+      
+      // Forme du corps identique au joueur (Tête + Torse + Jambes) sans l'arme
+      // Tête
+      g.fillStyle(0xffffff, 1);
+      g.fillRect(4, 2, 8, 8);
+      g.fillStyle(0xd9c39a, 1);
+      g.fillRect(5, 3, 6, 6);
+
+      // Torse (couleur variable)
+      g.fillStyle(color, 1);
+      g.fillRect(3, 10, 10, 8);
+
+      // Jambes
+      g.fillStyle(0x333333, 1);
+      g.fillRect(5, 18, 2, 6);
+      g.fillRect(9, 18, 2, 6);
+
+      g.generateTexture(`decor_citizen_${index}`, 16, 26);
+    });
 
     g.destroy();
   }
@@ -31,8 +46,10 @@ export class DecorSystem {
     const y2 = town ? town.y2 : (this.scene.sys.game.config.height || 600);
 
     for (let i = 0; i < count; i++) {
-      // Uniquement des citoyens
-      const type = 'decor_citizen';
+      // Choisit aléatoirement l'une des textures colorées de citoyen
+      const colorIndex = Phaser.Math.Between(0, 5);
+      const type = `decor_citizen_${colorIndex}`;
+
       let x = 0;
       let y = 0;
       const BUILDING_W = 140;
@@ -45,6 +62,7 @@ export class DecorSystem {
         if (!this._isOverBuilding(x, y, BUILDING_W, BUILDING_H)) { found = true; break; }
       }
       if (!found) { x = this.scene.TOWN_CENTER.x; y = this.scene.TOWN_CENTER.y; }
+
       const s = this.scene.physics.add.sprite(x, y, type);
       s.setDepth(14 + (i % 4));
       s.setOrigin(0.5, 1);
@@ -54,9 +72,9 @@ export class DecorSystem {
       s.setCollideWorldBounds(true);
 
       const playerH = (this.scene.player && this.scene.player.sprite) ? this.scene.player.sprite.height : 34;
-      const baseH = Math.round((playerH || 34) * 2.0);
+      const baseH = Math.round((playerH || 34) * 1.5);
       let targetH = baseH;
-      let targetW = Math.round(baseH * 0.55);
+      let targetW = Math.round(baseH * 0.6);
 
       s.setDisplaySize(targetW, targetH);
       s.setOrigin(0.5, 1);
