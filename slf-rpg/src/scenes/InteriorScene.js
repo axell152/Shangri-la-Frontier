@@ -52,7 +52,7 @@ export class InteriorScene extends Phaser.Scene {
       this.add.line(roomX - roomW / 2 + 50 + i * 90, roomY + roomH / 2 - 100, 0, 0, 0, 80, 0x1f1712, 0.4).setLineWidth(2);
     }
 
-    // Mobilier de fond & Éléments spécifiques
+    // Mobilier de fond
     const deskX = roomX;
     const deskY = roomY + 40;
     
@@ -64,7 +64,7 @@ export class InteriorScene extends Phaser.Scene {
         fontSize: '11px', color: '#ffd23d', fontFamily: 'monospace'
       }).setOrigin(0.5);
     } else if (this.isMerchantBuilding) {
-      this.add.text(deskX, deskY - 10, 'ÉTAL DE MARCHANDISE (ACHAT / VENTE)', {
+      this.add.text(deskX, deskY - 10, 'COMPTOIR DU COMMERÇANT (ACHAT / VENTE)', {
         fontSize: '11px', color: '#ffd23d', fontFamily: 'monospace'
       }).setOrigin(0.5);
     } else if (this.isForgeBuilding) {
@@ -73,7 +73,7 @@ export class InteriorScene extends Phaser.Scene {
       }).setOrigin(0.5);
     }
 
-    // --- INTERFACE DES ONGLETS (Affichée si c'est la Forge ou le Marchand) ---
+    // --- INTERFACE DES ONGLETS ---
     if (this.isForgeBuilding || this.isMerchantBuilding) {
       this.createTabsUI(w, roomY);
     }
@@ -91,12 +91,11 @@ export class InteriorScene extends Phaser.Scene {
     this.add.rectangle(npcX - 3, npcY + 9, 3, 8, 0x333333);
     this.add.rectangle(npcX + 3, npcY + 9, 3, 8, 0x333333);
 
-    this.npcName = this.building.npcName || (this.isForgeBuilding ? 'Forgeron' : (this.isMerchantBuilding ? 'Marchand' : 'Habitant'));
+    this.npcName = this.building.npcName || (this.isForgeBuilding ? 'Forgeron' : (this.isMerchantBuilding ? 'Commerçant' : 'Habitant'));
     this.add.text(npcX, npcY - 34, this.npcName, {
       fontSize: '11px', color: '#ffd23d', fontFamily: 'monospace', backgroundColor: '#000000aa', padding: { x: 4, y: 2 }
     }).setOrigin(0.5);
 
-    // Texte de dialogue / statut
     const defaultPrompt = this.isForgeBuilding 
       ? 'Appuyez sur T pour ouvrir la Forge' 
       : (this.isMerchantBuilding ? 'Appuyez sur T pour commercer' : 'Appuyez sur T pour parler');
@@ -120,22 +119,18 @@ export class InteriorScene extends Phaser.Scene {
     this.cameras.main.fadeIn(250, 0, 0, 0);
   }
 
-  // Crée visuellement les deux boutons d'onglets cliquables
   createTabsUI(w, roomY) {
     const tabY = roomY + 90;
     
     let label1 = this.isForgeBuilding ? 'REPARATION' : 'ACHAT';
     let label2 = this.isForgeBuilding ? 'FUSION' : 'VENTE';
 
-    // Bouton 1
     this.tab1Bg = this.add.rectangle(w / 2 - 80, tabY, 140, 28, 0x332211).setInteractive();
     this.tab1Text = this.add.text(w / 2 - 80, tabY, label1, { fontSize: '12px', color: '#ffd23d', fontFamily: 'monospace' }).setOrigin(0.5);
 
-    // Bouton 2
     this.tab2Bg = this.add.rectangle(w / 2 + 80, tabY, 140, 28, 0x222222).setInteractive();
     this.tab2Text = this.add.text(w / 2 + 80, tabY, label2, { fontSize: '12px', color: '#888888', fontFamily: 'monospace' }).setOrigin(0.5);
 
-    // Événements de clic pour changer d'onglet instantanément à la souris
     this.tab1Bg.on('pointerdown', () => {
       this.activeTab = this.isForgeBuilding ? 'repair' : 'buy';
       this.updateTabsVisuals();
@@ -164,11 +159,12 @@ export class InteriorScene extends Phaser.Scene {
       this.tab2Text.setColor('#ffd23d');
     }
 
-    // Émet un signal pour indiquer quel sous-panneau afficher/actualiser
-    EventBus.emit('interior-tab-changed', {
-      buildingType: this.isForgeBuilding ? 'forge' : 'merchant',
-      activeTab: this.activeTab
-    });
+    // Envoi des sous-onglets distincts pour la forge ou le marchand
+    if (this.isForgeBuilding) {
+      EventBus.emit('forge-tab', this.activeTab);
+    } else if (this.isMerchantBuilding) {
+      EventBus.emit('merchant-tab', this.activeTab);
+    }
   }
 
   update() {
@@ -184,10 +180,11 @@ export class InteriorScene extends Phaser.Scene {
       if (this.isMerchantBuilding || this.isForgeBuilding) {
         this.panelOpen = !this.panelOpen;
         
+        // Déclenche des événements uniques selon le bâtiment
         if (this.isMerchantBuilding) {
-          EventBus.emit('merchant-panel', this.panelOpen);
+          EventBus.emit('merchant-shop-panel', { open: this.panelOpen, mode: this.activeTab });
         } else if (this.isForgeBuilding) {
-          EventBus.emit('forge-panel', this.panelOpen);
+          EventBus.emit('forge-craft-panel', { open: this.panelOpen, mode: this.activeTab });
         }
 
         const gameScene = this.scene.get('Game');
@@ -196,7 +193,9 @@ export class InteriorScene extends Phaser.Scene {
         }
 
         if (this.panelOpen) {
-          const actionName = this.isForgeBuilding ? (this.activeTab === 'repair' ? 'réparer' : 'fusionner') : (this.activeTab === 'buy' ? 'acheter' : 'vendre');
+          const actionName = this.isForgeBuilding 
+            ? (this.activeTab === 'repair' ? 'réparer' : 'fusionner') 
+            : (this.activeTab === 'buy' ? 'acheter' : 'vendre');
           this.dialogText.setText(`${this.npcName} : « Mode ${actionName} activé. »`);
         } else {
           this.dialogText.setText(`${this.npcName} : « À bientôt ! »`);
@@ -210,8 +209,8 @@ export class InteriorScene extends Phaser.Scene {
   }
 
   exitInterior() {
-    EventBus.emit('merchant-panel', false);
-    EventBus.emit('forge-panel', false);
+    EventBus.emit('merchant-shop-panel', { open: false });
+    EventBus.emit('forge-craft-panel', { open: false });
     EventBus.emit('inventory-panel', false);
 
     const game = this.scene.get('Game');
