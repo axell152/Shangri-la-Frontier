@@ -9,7 +9,7 @@ export class Enemy {
     
     // On stocke l'objet complet de config dans une autre propriété si besoin, 
     // et on garde bien un nombre pour la défense !
-    this.enemyDef = def; 
+    this.def = def; 
     this.defense = def.def;
     this.atk = def.atk;
     this.maxHp = def.hp;
