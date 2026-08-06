@@ -22,11 +22,12 @@ export const BUILDINGS = [
   },
 
   // --- ÎLOT NORD-OUEST ---
+  // --- ÎLOT NORD-OUEST ---
   {
-    id: 'forge', label: 'Forge', desc: 'Réparation d’armes — bientôt',
-    x: TOWN_CENTER.x - 420, y: TOWN_CENTER.y - 320, functional: false, color: 0x8a5a3a,
+    id: 'forge', label: 'Forge', desc: 'Réparation et Fusion d’armes',
+    x: TOWN_CENTER.x - 420, y: TOWN_CENTER.y - 320, functional: true, color: 0x8a5a3a,
     interiorColor: 0x3a2a1f, npcName: 'Forgeron',
-    lines: ['Reviens quand j’aurai remis l’enclume en état.', 'La chaleur, ça forge le caractère.']
+    lines: ['Apportez-moi vos armes à réparer ou à fusionner.', 'Le fer demande de la précision.']
   },
   {
     id: 'boulangerie', label: 'Boulangerie', desc: 'Pains et galettes',
@@ -39,10 +40,12 @@ export const BUILDINGS = [
   },
 
   // --- ÎLOT NORD-EST ---
+  // --- ÎLOT SUD-EST ---
   {
-    id: 'merchant', label: 'Marchand',
-    x: TOWN_CENTER.x + 420, y: TOWN_CENTER.y - 320,
-    functional: true, color: 0x7a5a3a
+    id: 'echoppe', label: 'Échoppe du Commerçant', desc: 'Achat et Vente d’objets',
+    x: TOWN_CENTER.x + 420, y: TOWN_CENTER.y + 320, functional: true, color: 0x3a6b5a,
+    interiorColor: 0x24302a, npcName: 'Commerçant',
+    lines: ['Jetez un œil à mes articles, ou vendez-moi vos prises !', 'De l’or contre du matériel de qualité.']
   },
   {
     id: 'apothicaire', label: 'Apothicaire', desc: 'Remèdes et plantes',
