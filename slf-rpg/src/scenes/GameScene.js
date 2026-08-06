@@ -505,6 +505,29 @@ export class GameScene extends Phaser.Scene {
     };
   }
 
+  isInTown(x, y) {
+    return (
+      x >= TOWN.x1 &&
+      x <= TOWN.x2 &&
+      y >= TOWN.y1 &&
+      y <= TOWN.y2
+    );
+  }
+
+  pushOutOfTown(x, y) {
+    const distLeft = Math.abs(x - TOWN.x1);
+    const distRight = Math.abs(x - TOWN.x2);
+    const distTop = Math.abs(y - TOWN.y1);
+    const distBottom = Math.abs(y - TOWN.y2);
+
+    const min = Math.min(distLeft, distRight, distTop, distBottom);
+
+    if (min === distLeft) return { x: TOWN.x1 - 10, y };
+    if (min === distRight) return { x: TOWN.x2 + 10, y };
+    if (min === distTop) return { x, y: TOWN.y1 - 10 };
+    return { x, y: TOWN.y2 + 10 };
+  }
+  
   update(time) {
     if (this.playerIsDead) return;
 
