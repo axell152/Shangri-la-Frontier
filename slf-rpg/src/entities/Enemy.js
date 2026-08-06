@@ -115,66 +115,58 @@ export class Enemy {
     let swing = Math.sin(this.animFrame) * 4;
     const color = this.mainColor;
     const shape = this.def.shape || 'humanoid';
+    const halfSize = this.defSize / 2;
 
     if (shape === 'slime') {
-      // Forme de flaque gélatineuse rebondissante
       let squash = Math.sin(this.animFrame * 2) * 3;
       this.gfx.fillStyle(color, 0.9);
       this.gfx.fillRect(px - 12, py - 4 + squash, 24, 12 - squash);
       this.gfx.fillStyle(0xffffff, 0.8);
-      this.gfx.fillRect(px - 4, py, 4, 4); // Yeux rigolos
+      this.gfx.fillRect(px - 4, py, 4, 4);
       this.gfx.fillRect(px + 2, py, 4, 4);
     } 
     else if (shape === 'bat') {
-      // Chauve-souris ailée
       let flap = Math.cos(this.animFrame * 4) * 8;
       this.gfx.fillStyle(color, 1);
-      this.gfx.fillRect(px - 4, py - 4, 8, 8); // Corps
+      this.gfx.fillRect(px - 4, py - 4, 8, 8);
       this.gfx.fillStyle(0x331144, 1);
-      this.gfx.fillRect(px - 14, py - 6 + flap, 10, 4); // Aile gauche
-      this.gfx.fillRect(px + 4, py - 6 + flap, 10, 4);  // Aile droite
+      this.gfx.fillRect(px - 14, py - 6 + flap, 10, 4);
+      this.gfx.fillRect(px + 4, py - 6 + flap, 10, 4);
     }
     else if (shape === 'wolf') {
-      // Loup ramassé
       this.gfx.fillStyle(color, 1);
-      this.gfx.fillRect(px - 12, py - 6, 24, 10); // Corps allongé
-      this.gfx.fillRect(px + 6, py - 14, 6, 8);   // Tête pointue
-      this.gfx.fillRect(px - 14, py - 2, 4, 8);   // Pattes
+      this.gfx.fillRect(px - 12, py - 6, 24, 10);
+      this.gfx.fillRect(px + 6, py - 14, 6, 8);
+      this.gfx.fillRect(px - 14, py - 2, 4, 8);
       this.gfx.fillRect(px + 10, py - 2, 4, 8);
     }
     else if (shape === 'spider') {
-      // Araignée menaçante
       this.gfx.fillStyle(color, 1);
-      this.gfx.fillRect(px - 10, py - 8, 20, 12); // Corps rond
+      this.gfx.fillRect(px - 10, py - 8, 20, 12);
       this.gfx.fillStyle(0xff0000, 1);
-      this.gfx.fillRect(px - 4, py - 6, 2, 2);    // Multiples yeux rouges
+      this.gfx.fillRect(px - 4, py - 6, 2, 2);
       this.gfx.fillRect(px + 2, py - 6, 2, 2);
-      // Pattes articulées
       this.gfx.lineStyle(2, color, 1);
       this.gfx.lineBetween(px - 10, py, px - 18, py + 6 + swing);
       this.gfx.lineBetween(px + 10, py, px + 18, py + 6 - swing);
     }
     else if (shape === 'golem' || shape === 'orc' || shape === 'mech_boss' || shape === 'treant' || shape === 'orc_warlord' || shape === 'queen_slime') {
-      // Gros monstres / Boss massifs (style blocs blindés)
       this.gfx.fillStyle(0x111111, 1);
       this.gfx.fillRect(px - 10 + swing, py + 4, 8, 16);
       this.gfx.fillRect(px + 2 - swing, py + 4, 8, 16);
 
       this.gfx.fillStyle(color, 1);
-      this.gfx.fillRect(-this.defSize/2, -this.defSize/2, this.defSize, this.defSize); // Corps massif proportionnel à sa taille
+      this.gfx.fillRect(px - halfSize, py - halfSize, this.defSize, this.defSize);
       
-      // Armure / Épaulières distinctives pour les boss
       this.gfx.fillStyle(0xffcc00, 1);
-      this.gfx.fillRect(px - this.defSize/2 - 4, py - this.defSize/2, 6, 10);
-      this.gfx.fillRect(px + this.defSize/2 - 2, py - this.defSize/2, 6, 10);
+      this.gfx.fillRect(px - halfSize - 4, py - halfSize, 6, 10);
+      this.gfx.fillRect(px + halfSize - 2, py - halfSize, 6, 10);
 
-      // Yeux menaçants du boss
       this.gfx.fillStyle(0xff0000, 1);
       this.gfx.fillRect(px - 6, py - 8, 4, 4);
       this.gfx.fillRect(px + 2, py - 8, 4, 4);
     }
     else {
-      // Forme humanoïde standard (Gobelin / Orc de base)
       this.gfx.fillStyle(0x111111, 1);
       this.gfx.fillRect(px - 6 + swing, py + 4, 5, 12);
       this.gfx.fillRect(px + 1 - swing, py + 4, 5, 12);
