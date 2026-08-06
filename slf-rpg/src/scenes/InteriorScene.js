@@ -29,6 +29,9 @@ export class InteriorScene extends Phaser.Scene {
     this.panelOpen = false;
     this.activeTab = this.isForgeBuilding ? 'repair' : (this.isMerchantBuilding ? 'buy' : null);
 
+    // Groupe pour stocker les éléments dynamiques de l'UI (listes d'objets)
+    this.uiElementsGroup = this.add.group();
+
     // Cadre principal de la pièce
     const roomW = w - 160;
     const roomH = h - 160;
@@ -116,6 +119,13 @@ export class InteriorScene extends Phaser.Scene {
     this.talkKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.T);
     this.lastTalkAt = 0;
 
+    // Écouter les mises à jour des stats/inventaire pour rafraîchir dynamiquement l'interface ouverte
+    EventBus.on('stats-updated', () => {
+      if (this.panelOpen) {
+        this.refreshInteractiveList();
+      }
+    });
+
     this.cameras.main.fadeIn(250, 0, 0, 0);
   }
 
@@ -159,11 +169,136 @@ export class InteriorScene extends Phaser.Scene {
       this.tab2Text.setColor('#ffd23d');
     }
 
-    // Envoi des sous-onglets distincts pour la forge ou le marchand
     if (this.isForgeBuilding) {
       EventBus.emit('forge-tab', this.activeTab);
     } else if (this.isMerchantBuilding) {
       EventBus.emit('merchant-tab', this.activeTab);
+    }
+
+    if (this.panelOpen) {
+      this.refreshInteractiveList();
+    }
+  }
+
+  // --- GÉNÉRATION VISUELLE DES LISTES INTERACTIVES ---
+  refreshInteractiveList() {
+    // Nettoyer les anciens éléments de la liste
+    this.uiElementsGroup.clear(true, true);
+
+    const w = this.sys.game.config.width;
+    const startY = 360;
+    const gameScene = this.scene.get('Game');
+    if (!gameScene || !gameScene.player) return;
+
+    const player = gameScene.player;
+
+    if (this.isMerchantBuilding) {
+      if (this.activeTab === 'buy') {
+        // Catalogue d'objets à acheter
+        const itemsToSell = [
+          itemTemplate('Épée de Fer', 50, 12, 'sword'),
+          itemTemplate('Hache Lourde', 90, 22, 'sword'),
+          itemTemplate('Baguette Magique', 120, 18, 'staff')
+        ];
+
+        itemsToSell.forEach((item, index) => {
+          const yPos = startY + (index * 45);
+          const bg = this.add.rectangle(w / 2, yPos, 500, 36, 0x1a1a24).setStrokeStyle(1, 0x444d57).setInteractive();
+          const txt = this.add.text(w / 2 - 220, yPos, `${item.name} — Atk: ${item.atk} (${item.cost} Or)`, { fontSize: '13px', color: '#fff', fontFamily: 'monospace' }).setOrigin(0, 0.5);
+          const btn = this.add.rectangle(w / 2 + 180, yPos, 80, 26, 0x2e6db4).setInteractive();
+          const btnTxt = this.add.text(w / 2 + 180, yPos, 'Acheter', { fontSize: '11px', color: '#fff', fontFamily: 'monospace' }).setOrigin(0.5);
+
+          btn.on('pointerdown', () => {
+            EventBus.emit('buy-item', item);
+          });
+
+          this.uiElementsGroup.add(bg);
+          this.uiElementsGroup.add(txt);
+          this.uiElementsGroup.add(btn);
+          this.uiElementsGroup.add(btnTxt);
+        });
+
+      } else {
+        // Inventaire à vendre
+        const inventory = player.weapons.inventory;
+        if (inventory.length === 0) {
+          const emptyTxt = this.add.text(w / 2, startY, 'Aucun objet dans l\'inventaire à vendre.', { fontSize: '13px', color: '#888', fontFamily: 'monospace' }).setOrigin(0.5);
+          this.uiElementsGroup.add(emptyTxt);
+          return;
+        }
+
+        inventory.forEach((weapon, index) => {
+          const yPos = startY + (index * 45);
+          const bg = this.add.rectangle(w / 2, yPos, 500, 36, 0x1a1a24).setStrokeStyle(1, 0x444d57).setInteractive();
+          const txt = this.add.text(w / 2 - 220, yPos, `${weapon.name} [${weapon.rarityLabel}]`, { fontSize: '13px', color: '#fff', fontFamily: 'monospace' }).setOrigin(0, 0.5);
+          const btn = this.add.rectangle(w / 2 + 180, yPos, 80, 26, 0x8b3a3a).setInteractive();
+          const btnTxt = this.add.text(w / 2 + 180, yPos, 'Vendre', { fontSize: '11px', color: '#fff', fontFamily: 'monospace' }).setOrigin(0.5);
+
+          btn.on('pointerdown', () => {
+            EventBus.emit('sell-weapon', weapon.id);
+          });
+
+          this.uiElementsGroup.add(bg);
+          this.uiElementsGroup.add(txt);
+          this.uiElementsGroup.add(btn);
+          this.uiElementsGroup.add(btnTxt);
+        });
+      }
+    } else if (this.isForgeBuilding) {
+      if (this.activeTab === 'repair') {
+        // Liste des armes à réparer (inventaire + arme équipée)
+        const repairableWeapons = [...player.weapons.inventory];
+        if (player.weapons.equipped) repairableWeapons.unshift(player.weapons.equipped);
+
+        if (repairableWeapons.length === 0) {
+          const emptyTxt = this.add.text(w / 2, startY, 'Aucune arme à réparer.', { fontSize: '13px', color: '#888', fontFamily: 'monospace' }).setOrigin(0.5);
+          this.uiElementsGroup.add(emptyTxt);
+          return;
+        }
+
+        repairableWeapons.forEach((weapon, index) => {
+          const yPos = startY + (index * 45);
+          const bg = this.add.rectangle(w / 2, yPos, 500, 36, 0x1a1a24).setStrokeStyle(1, 0x444d57).setInteractive();
+          const txt = this.add.text(w / 2 - 220, yPos, `${weapon.name} (Durabilité: ${weapon.durability || 100})`, { fontSize: '13px', color: '#fff', fontFamily: 'monospace' }).setOrigin(0, 0.5);
+          const btn = this.add.rectangle(w / 2 + 180, yPos, 80, 26, 0xb44e2e).setInteractive();
+          const btnTxt = this.add.text(w / 2 + 180, yPos, 'Réparer (15g)', { fontSize: '10px', color: '#fff', fontFamily: 'monospace' }).setOrigin(0.5);
+
+          btn.on('pointerdown', () => {
+            EventBus.emit('repair-weapon', weapon.id);
+          });
+
+          this.uiElementsGroup.add(bg);
+          this.uiElementsGroup.add(txt);
+          this.uiElementsGroup.add(btn);
+          this.uiElementsGroup.add(btnTxt);
+        });
+
+      } else {
+        // Fusion d'armes
+        const mergeGroups = player.weapons.getMergeableGroups();
+        if (mergeGroups.length === 0) {
+          const emptyTxt = this.add.text(w / 2, startY, 'Aucune arme doublon à fusionner.', { fontSize: '13px', color: '#888', fontFamily: 'monospace' }).setOrigin(0.5);
+          this.uiElementsGroup.add(emptyTxt);
+          return;
+        }
+
+        mergeGroups.forEach((group, index) => {
+          const yPos = startY + (index * 45);
+          const bg = this.add.rectangle(w / 2, yPos, 500, 36, 0x1a1a24).setStrokeStyle(1, 0x444d57).setInteractive();
+          const txt = this.add.text(w / 2 - 220, yPos, `${group.name} (${group.count} exemplaires) - ${group.cost} Or`, { fontSize: '13px', color: '#ffd23d', fontFamily: 'monospace' }).setOrigin(0, 0.5);
+          const btn = this.add.rectangle(w / 2 + 180, yPos, 80, 26, 0xb44e2e).setInteractive();
+          const btnTxt = this.add.text(w / 2 + 180, yPos, 'Fusionner', { fontSize: '11px', color: '#fff', fontFamily: 'monospace' }).setOrigin(0.5);
+
+          btn.on('pointerdown', () => {
+            EventBus.emit('merge-weapons', group.name);
+          });
+
+          this.uiElementsGroup.add(bg);
+          this.uiElementsGroup.add(txt);
+          this.uiElementsGroup.add(btn);
+          this.uiElementsGroup.add(btnTxt);
+        });
+      }
     }
   }
 
@@ -180,7 +315,6 @@ export class InteriorScene extends Phaser.Scene {
       if (this.isMerchantBuilding || this.isForgeBuilding) {
         this.panelOpen = !this.panelOpen;
         
-        // Déclenche des événements uniques selon le bâtiment
         if (this.isMerchantBuilding) {
           EventBus.emit('merchant-shop-panel', { open: this.panelOpen, mode: this.activeTab });
         } else if (this.isForgeBuilding) {
@@ -197,8 +331,10 @@ export class InteriorScene extends Phaser.Scene {
             ? (this.activeTab === 'repair' ? 'réparer' : 'fusionner') 
             : (this.activeTab === 'buy' ? 'acheter' : 'vendre');
           this.dialogText.setText(`${this.npcName} : « Mode ${actionName} activé. »`);
+          this.refreshInteractiveList();
         } else {
           this.dialogText.setText(`${this.npcName} : « À bientôt ! »`);
+          this.uiElementsGroup.clear(true, true);
         }
       } else {
         const lines = this.building.lines || ['Bonjour voyageur.'];
@@ -227,4 +363,20 @@ export class InteriorScene extends Phaser.Scene {
       }
     });
   }
+}
+
+// Fonction utilitaire pour créer un gabarit d'objet à acheter
+function itemTemplate(name, cost, atk, kind) {
+  return {
+    id: 'item_' + Math.random().toString(36).substr(2, 5),
+    name: name,
+    cost: cost,
+    atk: atk,
+    kind: kind || 'sword',
+    rarity: 1,
+    rarityLabel: 'Commun',
+    color: 0xffffff,
+    durability: 100,
+    maxDurability: 100
+  };
 }
