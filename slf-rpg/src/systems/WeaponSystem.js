@@ -112,36 +112,43 @@ export class WeaponSystem {
     weapon.xp += amount;
     let leveledUp = false;
 
+    // Boucle au cas où l'arme gagne assez d'XP pour prendre plusieurs niveaux d'un coup
     while (weapon.xp >= weapon.xpToNext) {
       weapon.xp -= weapon.xpToNext;
       weapon.level += 1;
       weapon.xpToNext = Math.round(weapon.xpToNext * 1.5);
       leveledUp = true;
 
-      // Déblocage de compétences selon les paliers de niveau de l'arme
+      // Vérifie et débloque les compétences pour ce nouveau niveau
       this.checkSkillUnlock(weapon);
     }
 
     return leveledUp ? { level: weapon.level, name: weapon.name } : null;
   }
 
-  // Associe des compétences aux armes en fonction de leur niveau atteint
+  // Associe des compétences uniques aux armes selon leur nom/type et les paliers 20 et 50
   checkSkillUnlock(weapon) {
-    if (weapon.level === 2 && !weapon.unlockedSkills.some(s => s.id === 'shockwave')) {
-      weapon.unlockedSkills.push({
-        id: 'shockwave',
-        name: 'Onde de Choc',
-        key: 'ONE', // Touche 1
-        description: 'Libère une onde circulaire endommageant les ennemis proches.'
-      });
-    } else if (weapon.level === 5 && !weapon.unlockedSkills.some(s => s.id === 'dash_strike')) {
-      weapon.unlockedSkills.push({
-        id: 'dash_strike',
-        name: 'Frappe Éclair',
-        key: 'TWO', // Touche 2
-        description: 'Projette une estocade perforante surpuissante.'
-      });
+    if (!weapon.unlockedSkills) {
+      weapon.unlockedSkills = [];
     }
+
+    // Récupère les compétences spécifiques de cette arme (paliers 20 et 50)
+    const uniqueSkills = getUniqueSkillsForWeapon(weapon.name, weapon.kind);
+
+    uniqueSkills.forEach(skillDef => {
+      // Si l'arme atteint le niveau requis (ex: 20 ou 50) et ne l'a pas encore débloquée
+      if (weapon.level === skillDef.level) {
+        if (!weapon.unlockedSkills.some(s => s.id === skillDef.id)) {
+          weapon.unlockedSkills.push(skillDef);
+          
+          // Notifie le jeu qu'une compétence a été débloquée
+          EventBus.emit('loot-log', { 
+            type: 'levelup', 
+            text: `🔥 ${weapon.name} a atteint le niv. ${weapon.level} ! Nouvelle compétence : ${skillDef.name}` 
+          });
+        }
+      }
+    });
   }
 
   // Consomme un point de durabilité
