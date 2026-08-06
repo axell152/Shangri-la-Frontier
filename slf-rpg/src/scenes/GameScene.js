@@ -468,35 +468,27 @@ export class GameScene extends Phaser.Scene {
     this.emitStatsUpdate();
   }
 
-  onHitEnemy(enemy, damage, isCrit) {
-    const killed = enemy.takeDamage(damage);
-    this.showDamagePopup(enemy.x, enemy.y, damage, isCrit);
-
-    if (killed) {
+  if (killed) {
       const weapon = LootSystem.rollForEnemy(enemy.lootTier);
       if (weapon) this.spawnLootDrop(enemy.x, enemy.y, weapon);
 
+      // 1. Gestion de l'XP du joueur
       const leveledUp = this.player.stats.gainXp(enemy.xp);
       EventBus.emit('loot-log', { type: 'kill', text: `${enemy.typeKey} vaincu (+${enemy.xp} XP)` });
       if (leveledUp) EventBus.emit('level-up', this.player.stats.level);
 
-      // Quand un monstre est vaincu :
-const enemyXp = enemy.xp || 10; // Récupère l'XP du monstre
+      // 2. Gestion de l'XP de l'arme équipée
+      // On passe par la méthode propre du joueur ou de son gestionnaire d'armes
+      if (this.player.weapons && typeof this.player.weapons.addWeaponXp === 'function') {
+        const weaponLevelUp = this.player.weapons.addWeaponXp(enemy.xp);
+        if (weaponLevelUp) {
+          EventBus.emit('loot-log', { 
+            type: 'pickup', 
+            text: `Ton arme (${weaponLevelUp.name}) est passée niveau ${weaponLevelUp.level} !` 
+          });
+        }
+      }
 
-// 1. Donne l'XP au joueur (si tu l'as déjà)
-this.player.gainXp(enemyXp);
-
-// 2. DONNE L'XP À L'ARME ÉQUIPÉE :
-const weaponLevelUp = this.player.weapons.addWeaponXp(enemyXp);
-
-// (Optionnel) Si l'arme monte de niveau, tu peux afficher un message dans les logs du HUD !
-if (weaponLevelUp) {
-  this.scene.get('UI').pushLog({
-    type: 'levelup',
-    text: `Ton arme (${weaponLevelUp.name}) est passée niveau ${weaponLevelUp.level} !`
-  });
-}
-      
       const typeKey = enemy.typeKey;
       const isBoss = enemy.isBoss;
       const zoneId = enemy.zoneId;
