@@ -2,8 +2,7 @@ import Phaser from 'phaser';
 import { EventBus } from '../EventBus.js';
 
 // Scène intérieure générique pour les bâtiments visitables de la ville
-// (forge, taverne, échoppe). Le marchand garde son propre panneau externe
-// (proximité + T) et n'utilise pas cette scène.
+// (forge, taverne, échoppe/marchand).
 export class InteriorScene extends Phaser.Scene {
   constructor() {
     super('Interior');
@@ -19,6 +18,15 @@ export class InteriorScene extends Phaser.Scene {
     const h = this.sys.game.config.height;
 
     this.cameras.main.setBackgroundColor('#0b0b0f');
+
+    // Détection si le bâtiment est celui du marchand / échoppe
+    this.isMerchantBuilding = 
+      this.building.id === 'echoppe' || 
+      this.building.id === 'marchand' || 
+      this.building.isMerchant || 
+      (this.building.label && this.building.label.toLowerCase().includes('marchand'));
+
+    this.merchantPanelOpen = false;
 
     // Cadre principal de la pièce (agrandi et bien centré)
     const roomW = w - 160;
@@ -44,7 +52,6 @@ export class InteriorScene extends Phaser.Scene {
     }
 
     // --- Mobilier de fond & Éléments spécifiques ---
-    // Grand comptoir / établi central selon le type de bâtiment
     const deskX = roomX;
     const deskY = roomY + 40;
     
@@ -55,11 +62,10 @@ export class InteriorScene extends Phaser.Scene {
       this.add.text(deskX, deskY - 10, 'COMPTOIR DE LA TAVERNE', {
         fontSize: '11px', color: '#ffd23d', fontFamily: 'monospace'
       }).setOrigin(0.5);
-      // Chopes de bière sur le comptoir
       this.add.rectangle(deskX - 60, deskY - 12, 14, 18, 0xd8a96b).setAngle(6);
       this.add.rectangle(deskX - 20, deskY - 12, 12, 16, 0xc48b4c).setAngle(-4);
       this.add.rectangle(deskX + 30, deskY - 12, 14, 18, 0xd8a96b).setAngle(8);
-    } else if (this.building.id === 'echoppe') {
+    } else if (this.isMerchantBuilding) {
       this.add.text(deskX, deskY - 10, 'ÉTAL DE MARCHANDISE', {
         fontSize: '11px', color: '#ffd23d', fontFamily: 'monospace'
       }).setOrigin(0.5);
@@ -70,8 +76,8 @@ export class InteriorScene extends Phaser.Scene {
       this.add.text(deskX, deskY - 10, 'ENCLUME ET FOURNEAU', {
         fontSize: '11px', color: '#ffd23d', fontFamily: 'monospace'
       }).setOrigin(0.5);
-      this.add.rectangle(deskX - 60, deskY - 12, 28, 20, 0xe75829); // Charbon ardent
-      this.add.rectangle(deskX + 40, deskY - 12, 16, 28, 0x3a2f1d); // Enclume
+      this.add.rectangle(deskX - 60, deskY - 12, 28, 20, 0xe75829);
+      this.add.rectangle(deskX + 40, deskY - 12, 16, 28, 0x3a2f1d);
       this.add.line(deskX + 40, deskY - 20, 0, 0, 30, 0, 0x898174, 1).setLineWidth(3);
     }
 
@@ -82,42 +88,42 @@ export class InteriorScene extends Phaser.Scene {
     this.add.rectangle(shelfX - 140, shelfY + 30, 12, 45, 0x3b2a1f);
     this.add.rectangle(shelfX + 140, shelfY + 30, 12, 45, 0x3b2a1f);
     
-    // Objets sur l'étagère
-    for(let i = -100; i <= 100; i += 50) {
+    for (let i = -100; i <= 100; i += 50) {
       this.add.rectangle(shelfX + i, shelfY - 10, 16, 22, 0x5a6878);
     }
 
-    // --- PNJ IDENTIQUE AU JOUEUR (mais sans l'arme) ---
-    // Positionné derrière ou à côté du comptoir, face au joueur
+    // --- PNJ ---
     const npcX = roomX;
     const npcY = deskY - 45;
 
-    // Corps du PNJ (Reprend exactement la structure du Player : Tête, Torse, Jambes)
-    // 1. Tête
+    // Corps du PNJ
     this.add.rectangle(npcX, npcY - 18, 12, 12, 0xffffff);
     this.add.rectangle(npcX, npcY - 18, 10, 10, 0xd9c39a);
 
-    // 2. Torse (vêtement coloré adapté au bâtiment)
     const shirtColor = this.building.id === 'forge' ? 0xb44e2e : (this.building.id === 'taverne' ? 0x6b3a3a : 0x2e6db4);
     this.add.rectangle(npcX, npcY, 14, 12, shirtColor);
 
-    // 3. Jambes
     this.add.rectangle(npcX - 3, npcY + 9, 3, 8, 0x333333);
     this.add.rectangle(npcX + 3, npcY + 9, 3, 8, 0x333333);
 
-    // Nom du PNJ au-dessus de sa tête
-    this.npcName = this.building.npcName || 'Habitant';
+    // Nom du PNJ
+    this.npcName = this.building.npcName || (this.isMerchantBuilding ? 'Marchand' : 'Habitant');
     this.add.text(npcX, npcY - 34, this.npcName, {
       fontSize: '11px', color: '#ffd23d', fontFamily: 'monospace', backgroundColor: '#000000aa', padding: { x: 4, y: 2 }
     }).setOrigin(0.5);
 
-    // Zone de texte pour les dialogues
-    this.dialogText = this.add.text(w / 2, roomY + 120, 'Appuyez sur T pour parler', {
+    // Prompt sous le comptoir
+    const defaultPrompt = this.isMerchantBuilding 
+      ? 'Appuyez sur T pour commercer' 
+      : 'Appuyez sur T pour parler';
+
+    this.dialogText = this.add.text(w / 2, roomY + 120, defaultPrompt, {
       fontSize: '14px', color: '#fff', fontFamily: 'monospace', backgroundColor: '#16161dee', padding: { x: 10, y: 6 }
     }).setOrigin(0.5);
 
-    // Instructions de sortie en bas
-    this.add.text(w / 2, h - 50, 'E : sortir · T : parler', {
+    // Instructions en bas
+    const helpText = this.isMerchantBuilding ? 'E : sortir · T : commercer' : 'E : sortir · T : parler';
+    this.add.text(w / 2, h - 50, helpText, {
       fontSize: '12px', color: '#999', fontFamily: 'monospace'
     }).setOrigin(0.5);
 
@@ -137,13 +143,33 @@ export class InteriorScene extends Phaser.Scene {
       const now = this.time.now;
       if (now - this.lastTalkAt < 400) return;
       this.lastTalkAt = now;
-      const lines = this.building.lines || ['Bonjour voyageur.'];
-      const text = `${this.npcName} : "${lines[Math.floor(Math.random() * lines.length)]}"`;
-      this.dialogText.setText(text);
+
+      if (this.isMerchantBuilding) {
+        this.merchantPanelOpen = !this.merchantPanelOpen;
+        EventBus.emit('merchant-panel', this.merchantPanelOpen);
+        
+        const gameScene = this.scene.get('Game');
+        if (gameScene && typeof gameScene.emitStatsUpdate === 'function') {
+          gameScene.emitStatsUpdate();
+        }
+
+        if (this.merchantPanelOpen) {
+          this.dialogText.setText(`${this.npcName} : « Jetez un œil à ma marchandise ! »`);
+        } else {
+          this.dialogText.setText(`${this.npcName} : « À bientôt ! »`);
+        }
+      } else {
+        const lines = this.building.lines || ['Bonjour voyageur.'];
+        const text = `${this.npcName} : "${lines[Math.floor(Math.random() * lines.length)]}"`;
+        this.dialogText.setText(text);
+      }
     }
   }
 
   exitInterior() {
+    EventBus.emit('merchant-panel', false);
+    EventBus.emit('inventory-panel', false);
+
     const game = this.scene.get('Game');
     if (game && game.player && this.returnPos) {
       game.player.sprite.setPosition(this.returnPos.x, this.returnPos.y + 40);
@@ -157,6 +183,5 @@ export class InteriorScene extends Phaser.Scene {
         g.cameras.main.fadeIn(220, 0, 0, 0);
       }
     });
-    EventBus.emit('inventory-panel', false);
   }
 }
