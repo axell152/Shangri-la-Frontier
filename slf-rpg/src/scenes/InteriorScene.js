@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { EventBus } from '../EventBus.js';
+import { WEAPON_CATALOG } from '../weaponCatalog.js'; // Assure-toi du chemin d'accès exact vers ton catalogue
 
 export class InteriorScene extends Phaser.Scene {
   constructor() {
@@ -119,7 +120,6 @@ export class InteriorScene extends Phaser.Scene {
     this.talkKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.T);
     this.lastTalkAt = 0;
 
-    // Écouter les mises à jour des stats/inventaire pour rafraîchir dynamiquement l'interface ouverte
     EventBus.on('stats-updated', () => {
       if (this.panelOpen) {
         this.refreshInteractiveList();
@@ -180,9 +180,62 @@ export class InteriorScene extends Phaser.Scene {
     }
   }
 
+  // --- GESTION DU STOCK TOUTES LES 4 HEURES DEPUIS WEAPON_CATALOG ---
+  getMerchantStock() {
+    const gameScene = this.scene.get('Game');
+    if (!gameScene) return [];
+
+    // Initialisation globale de la structure de données du marchand si elle n'existe pas
+    if (!gameScene.registry.has('merchantStockData')) {
+      gameScene.registry.set('merchantStockData', { items: [], lastRefreshTime: 0 });
+    }
+
+    const stockData = gameScene.registry.get('merchantStockData');
+    const now = Date.now();
+    const fourHoursMs = 4 * 60 * 60 * 1000;
+
+    // Si le stock est vide ou si 4 heures se sont écoulées, on génère de nouveaux objets aléatoires
+    if (stockData.items.length === 0 || (now - stockData.lastRefreshTime > fourHoursMs)) {
+      const newItems = [];
+      const categories = Object.keys(WEAPON_CATALOG);
+
+      // On pioche par exemple 4 armes aléatoires de catégories différentes pour l'achalandage
+      for (let i = 0; i < 4; i++) {
+        const randomCategory = categories[Math.floor(Math.random() * categories.length)];
+        const categoryWeapons = WEAPON_CATALOG[randomCategory];
+        const randomWeapon = categoryWeapons[Math.floor(Math.random() * categoryWeapons.length)];
+
+        // Définition d'un coût et d'une attaque basés sur le tier de l'arme
+        let cost = 50;
+        let atk = 10;
+        if (randomWeapon.tier === 'PEU_COMMUNE') { cost = 100; atk = 18; }
+        else if (randomWeapon.tier === 'RARE') { cost = 250; atk = 30; }
+        else if (randomWeapon.tier === 'EPIQUE') { cost = 600; atk = 50; }
+        else if (randomWeapon.tier === 'LEGENDAIRE') { cost = 1500; atk = 85; }
+        else if (randomWeapon.tier === 'MYTHIQUE' || randomWeapon.tier === 'RELIQUE_DIVINE') { cost = 4000; atk = 130; }
+
+        newItems.push({
+          id: 'shop_item_' + Math.random().toString(36).substr(2, 5),
+          name: randomWeapon.name,
+          tier: randomWeapon.tier,
+          cost: cost,
+          atk: atk,
+          kind: randomCategory,
+          durability: 100,
+          maxDurability: 100
+        });
+      }
+
+      stockData.items = newItems;
+      stockData.lastRefreshTime = now;
+      gameScene.registry.set('merchantStockData', stockData);
+    }
+
+    return stockData.items;
+  }
+
   // --- GÉNÉRATION VISUELLE DES LISTES INTERACTIVES ---
   refreshInteractiveList() {
-    // Nettoyer les anciens éléments de la liste
     this.uiElementsGroup.clear(true, true);
 
     const w = this.sys.game.config.width;
@@ -194,12 +247,8 @@ export class InteriorScene extends Phaser.Scene {
 
     if (this.isMerchantBuilding) {
       if (this.activeTab === 'buy') {
-        // Catalogue d'objets à acheter
-        const itemsToSell = [
-          itemTemplate('Épée de Fer', 50, 12, 'sword'),
-          itemTemplate('Hache Lourde', 90, 22, 'sword'),
-          itemTemplate('Baguette Magique', 120, 18, 'staff')
-        ];
+        // Récupération du stock aléatoire tournant sur 4h
+        const itemsToSell = this.getMerchantStock();
 
         itemsToSell.forEach((item, index) => {
           const yPos = startY + (index * 45);
@@ -230,7 +279,7 @@ export class InteriorScene extends Phaser.Scene {
         inventory.forEach((weapon, index) => {
           const yPos = startY + (index * 45);
           const bg = this.add.rectangle(w / 2, yPos, 500, 36, 0x1a1a24).setStrokeStyle(1, 0x444d57).setInteractive();
-          const txt = this.add.text(w / 2 - 220, yPos, `${weapon.name} [${weapon.rarityLabel}]`, { fontSize: '13px', color: '#fff', fontFamily: 'monospace' }).setOrigin(0, 0.5);
+          const txt = this.add.text(w / 2 - 220, yPos, `${weapon.name} [${weapon.rarityLabel || weapon.tier}]`, { fontSize: '13px', color: '#fff', fontFamily: 'monospace' }).setOrigin(0, 0.5);
           const btn = this.add.rectangle(w / 2 + 180, yPos, 80, 26, 0x8b3a3a).setInteractive();
           const btnTxt = this.add.text(w / 2 + 180, yPos, 'Vendre', { fontSize: '11px', color: '#fff', fontFamily: 'monospace' }).setOrigin(0.5);
 
@@ -246,7 +295,6 @@ export class InteriorScene extends Phaser.Scene {
       }
     } else if (this.isForgeBuilding) {
       if (this.activeTab === 'repair') {
-        // Liste des armes à réparer (inventaire + arme équipée)
         const repairableWeapons = [...player.weapons.inventory];
         if (player.weapons.equipped) repairableWeapons.unshift(player.weapons.equipped);
 
@@ -274,7 +322,6 @@ export class InteriorScene extends Phaser.Scene {
         });
 
       } else {
-        // Fusion d'armes
         const mergeGroups = player.weapons.getMergeableGroups();
         if (mergeGroups.length === 0) {
           const emptyTxt = this.add.text(w / 2, startY, 'Aucune arme doublon à fusionner.', { fontSize: '13px', color: '#888', fontFamily: 'monospace' }).setOrigin(0.5);
@@ -363,20 +410,4 @@ export class InteriorScene extends Phaser.Scene {
       }
     });
   }
-}
-
-// Fonction utilitaire pour créer un gabarit d'objet à acheter
-function itemTemplate(name, cost, atk, kind) {
-  return {
-    id: 'item_' + Math.random().toString(36).substr(2, 5),
-    name: name,
-    cost: cost,
-    atk: atk,
-    kind: kind || 'sword',
-    rarity: 1,
-    rarityLabel: 'Commun',
-    color: 0xffffff,
-    durability: 100,
-    maxDurability: 100
-  };
 }
