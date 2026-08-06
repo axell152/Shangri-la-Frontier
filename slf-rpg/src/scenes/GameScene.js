@@ -196,6 +196,27 @@ export class GameScene extends Phaser.Scene {
     EventBus.on('buy-item', (itemTemplate) => {
       this.buyItem(itemTemplate);
     });
+
+    EventBus.on('merchant-shop-panel', ({ open, mode }) => this.toggleMerchantPanel(open, mode));
+    EventBus.on('forge-craft-panel', ({ open, mode }) => this.toggleForgePanel(open, mode));
+
+    this.dom.querySelector('#merchant-tab-buy').addEventListener('click', () => {
+      this.setMerchantTab('buy');
+      EventBus.emit('merchant-tab', 'buy');
+    });
+    this.dom.querySelector('#merchant-tab-sell').addEventListener('click', () => {
+      this.setMerchantTab('sell');
+      EventBus.emit('merchant-tab', 'sell');
+    });
+
+    this.dom.querySelector('#forge-tab-repair').addEventListener('click', () => {
+      this.setForgeTab('repair');
+      EventBus.emit('forge-tab', 'repair');
+    });
+    this.dom.querySelector('#forge-tab-fusion').addEventListener('click', () => {
+      this.setForgeTab('fusion');
+      EventBus.emit('forge-tab', 'fusion');
+    });
   
   // Dessine les régions du monde (fond coloré + libellé + chemins en
   // pointillés depuis le hub), une fois pour toutes au chargement.
