@@ -5,21 +5,21 @@ export class Enemy {
   constructor(scene, x, y, typeKey) {
     this.scene = scene;
     this.typeKey = typeKey;
-    const def = ENEMY_TYPES[typeKey] || { def: 5, atk: 5, hp: 30, xp: 10, lootTier: 1, speed: 80, size: 28, color: 0x2e8b57 };
+    const def = ENEMY_TYPES[typeKey] || { def: 0, atk: 5, hp: 30, xp: 10, lootTier: 1, speed: 80, size: 28, color: 0x2e8b57, shape: 'humanoid' };
     
-    // On stocke l'objet complet de config dans une autre propriété si besoin, 
-    // et on garde bien un nombre pour la défense !
-    this.def = def; 
-    this.defense = def.def;
-    this.atk = def.atk;
-    this.maxHp = def.hp;
-    this.hp = def.hp;
-    this.xp = def.xp;
-    this.lootTier = def.lootTier;
-    this.speed = def.speed;
+    this.def = def;
+    
+    // Ajoute bien les "||" pour empêcher les "undefined" de casser ton jeu
+    this.defense = def.def || 0; 
+    this.atk = def.atk || 5;
+    this.maxHp = def.hp || 30;
+    this.hp = def.hp || 30;
+    this.xp = def.xp || 10;
+    this.lootTier = def.lootTier || 1;
+    this.speed = def.speed || 80;
     this.dead = false;
-    this.defSize = def.size;
-    this.mainColor = def.color;
+    this.defSize = def.size || 28;
+    this.mainColor = def.color || 0x2e8b57;
 
     this.sprite = scene.add.rectangle(x, y, def.size, def.size, 0x000000, 0);
     scene.physics.add.existing(this.sprite);
