@@ -4,8 +4,7 @@
 export const WORLD_W = 16000;
 export const WORLD_H = 16000;
 
-// Rectangle de la ville (Havre-du-Départ) — agrandi pour accueillir de vraies rues et 20 bâtiments.
-// C'est aussi la "safe zone" : aucun ennemi n'y entre, et c'est là qu'on sauvegarde (F).
+// Rectangle de la ville (Havre-du-Départ) — grande taille conservée
 export const TOWN = {
   id: 'town',
   label: 'Havre-du-Départ',
@@ -13,9 +12,23 @@ export const TOWN = {
 };
 export const TOWN_CENTER = { x: (TOWN.x1 + TOWN.x2) / 2, y: (TOWN.y1 + TOWN.y2) / 2 };
 
-// 20 Bâtiments dans la ville répartis en quartiers avec des rues
+// Bâtiments et décors urbains dans la ville pour occuper tout l'espace harmonieusement
 export const BUILDINGS = [
-  // --- Quartier Central / Place principale ---
+  // --- 1. Quartier Central & Places Publiques (Fontaines et Parcs) ---
+  {
+    id: 'fontaine_centrale', label: 'Grande Fontaine', desc: 'Point d\u2019eau pur et paisible',
+    x: TOWN_CENTER.x, y: TOWN_CENTER.y - 180, functional: false, color: 0x4a8a9a, isDecor: true
+  },
+  {
+    id: 'place_est', label: 'Place du Marché Est', desc: 'Espace de repos et kiosques',
+    x: TOWN_CENTER.x + 350, y: TOWN_CENTER.y, functional: false, color: 0x5a7a5a, isDecor: true
+  },
+  {
+    id: 'place_ouest', label: 'Jardin Public Ouest', desc: 'Espace boisé de détente',
+    x: TOWN_CENTER.x - 350, y: TOWN_CENTER.y, functional: false, color: 0x3d7a4d, isDecor: true
+  },
+
+  // --- 2. Bâtiments Commerciaux & Services principaux ---
   {
     id: 'merchant', label: 'Marchand', x: TOWN_CENTER.x + 140, y: TOWN_CENTER.y - 80,
     functional: true, color: 0x7a5a3a
@@ -39,7 +52,7 @@ export const BUILDINGS = [
     lines: ['Rien à vendre pour l\u2019instant, désolé.', 'Repasse plus tard, l\u2019inventaire arrive.']
   },
 
-  // --- Quartier Nord ---
+  // --- 3. Quartier Nord ---
   {
     id: 'house_north_1', label: 'Maison Nord', desc: 'Résidence',
     x: TOWN_CENTER.x - 300, y: TOWN_CENTER.y - 550, functional: false, color: 0x6b4f3a, interiorColor: 0x3a2a1f
@@ -63,7 +76,7 @@ export const BUILDINGS = [
     lines: ['Les champignons des marécages sont toxiques.', 'Besoin d\u2019un onguent ?']
   },
 
-  // --- Quartier Sud ---
+  // --- 4. Quartier Sud ---
   {
     id: 'house_south_1', label: 'Maison Sud', desc: 'Résidence',
     x: TOWN_CENTER.x - 300, y: TOWN_CENTER.y + 450, functional: false, color: 0x6b4f3a, interiorColor: 0x3a2a1f
@@ -87,7 +100,7 @@ export const BUILDINGS = [
     lines: ['Le cuir protège bien des griffes.', 'J\u2019attends des peaux de loups spectraux.']
   },
 
-  // --- Quartier Est ---
+  // --- 5. Quartier Est ---
   {
     id: 'house_east_1', label: 'Maison Est', desc: 'Résidence',
     x: TOWN_CENTER.x + 600, y: TOWN_CENTER.y - 250, functional: false, color: 0x705242, interiorColor: 0x38281d
@@ -102,7 +115,7 @@ export const BUILDINGS = [
     lines: ['Fraîchement cueillis aux abords de la forêt !']
   },
 
-  // --- Quartier Ouest ---
+  // --- 6. Quartier Ouest ---
   {
     id: 'house_west_1', label: 'Maison Ouest', desc: 'Résidence',
     x: TOWN_CENTER.x - 600, y: TOWN_CENTER.y - 250, functional: false, color: 0x705242, interiorColor: 0x38281d
@@ -115,6 +128,24 @@ export const BUILDINGS = [
     id: 'stall_tissus', label: 'Étal de Tissus', desc: 'Étoffes et vêture',
     x: TOWN_CENTER.x - 450, y: TOWN_CENTER.y + 80, functional: false, color: 0xc77fb3, interiorColor: 0x3b2430, npcName: 'Tisserande',
     lines: ['De jolies couleurs pour vos voyages.']
+  },
+
+  // --- 7. Maisons et décorations de périphérie (pour combler les grands espaces vides) ---
+  {
+    id: 'hut_nw', label: 'Cabane des Gardes', desc: 'Poste de surveillance nord-ouest',
+    x: TOWN_CENTER.x - 700, y: TOWN_CENTER.y - 700, functional: false, color: 0x5a4a3a, interiorColor: 0x292019
+  },
+  {
+    id: 'hut_ne', label: 'Hutte du Pêcheur', desc: 'Réserve d\u2019eau',
+    x: TOWN_CENTER.x + 700, y: TOWN_CENTER.y - 700, functional: false, color: 0x5a4a3a, interiorColor: 0x292019
+  },
+  {
+    id: 'hut_sw', label: 'Pavillon Sud-Ouest', desc: 'Entrepôt',
+    x: TOWN_CENTER.x - 700, y: TOWN_CENTER.y + 700, functional: false, color: 0x5a4a3a, interiorColor: 0x292019
+  },
+  {
+    id: 'hut_se', label: 'Pavillon Sud-Est', desc: 'Dépôt de vivres',
+    x: TOWN_CENTER.x + 700, y: TOWN_CENTER.y + 700, functional: false, color: 0x5a4a3a, interiorColor: 0x292019
   }
 ];
 
