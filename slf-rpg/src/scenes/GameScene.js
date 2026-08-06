@@ -136,6 +136,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   // Ville praticable : sol distinct, bâtiments, portes vers chaque biome.
+ // Ville praticable : sol distinct, bâtiments, portes vers chaque biome.
   drawTown() {
     const g = this.add.graphics();
     const w = TOWN.x2 - TOWN.x1;
@@ -173,6 +174,7 @@ export class GameScene extends Phaser.Scene {
 
     const roadWidth = 18;
     for (const b of BUILDINGS) {
+      if (b.isDecor) continue; // On ne trace pas de route vers la fontaine centrale décorative
       const dx = b.x - TOWN_CENTER.x;
       const dy = b.y - TOWN_CENTER.y;
       if (Math.abs(dx) >= Math.abs(dy)) {
@@ -189,9 +191,48 @@ export class GameScene extends Phaser.Scene {
       fontSize: '24px', color: '#ffd23d', fontFamily: 'monospace', fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    // Bâtiments décoratifs
+    // --- DESSIN DE LA GRANDE FONTAINE CENTRALE (Style Cascade Minecraft) ---
+    const fx = TOWN_CENTER.x;
+    const fy = TOWN_CENTER.y;
+
+    // 1. Margelle extérieure en pierre grise (socle)
+    g.fillStyle(0x5b616b, 1);
+    g.fillCircle(fx, fy, 95);
+    g.lineStyle(4, 0x3d4249, 1);
+    g.strokeCircle(fx, fy, 95);
+
+    // 2. Grand bassin d'eau principal
+    g.fillStyle(0x1d6a96, 1);
+    g.fillCircle(fx, fy, 82);
+
+    // 3. Premier palier de cascade (intermédiaire)
+    g.fillStyle(0x6e7681, 1);
+    g.fillCircle(fx, fy, 56);
+    g.fillStyle(0x288bc4, 1);
+    g.fillCircle(fx, fy, 46);
+
+    // 4. Second palier supérieur
+    g.fillStyle(0x8c95a1, 1);
+    g.fillCircle(fx, fy, 30);
+    g.fillStyle(0x4fbbf7, 1);
+    g.fillCircle(fx, fy, 22);
+
+    // 5. Sommet de la fontaine et écume lumineuse
+    g.fillStyle(0xa5d6ff, 1);
+    g.fillCircle(fx, fy - 4, 12);
+    g.fillStyle(0xffffff, 0.9);
+    g.fillCircle(fx, fy - 6, 6);
+
+    // Étiquette de la fontaine au centre
+    this.add.text(fx, fy + 105, 'Grande Fontaine', {
+      fontSize: '13px', color: '#8be9fd', fontFamily: 'monospace', fontStyle: 'bold', backgroundColor: '#000000aa', padding: { x: 4, y: 2 }
+    }).setOrigin(0.5);
+
+
+    // Bâtiments de la ville
     for (const b of BUILDINGS) {
-      // Augmente l'échelle des bâtiments pour les rendre plus lisibles
+      if (b.isDecor) continue; // Déjà géré par la fontaine
+
       const bw = 140; // width
       const bh = 96;  // height
       g.fillStyle(b.color, 1);
@@ -250,7 +291,7 @@ export class GameScene extends Phaser.Scene {
         fontSize: '12px', color: '#ffd23d', fontFamily: 'monospace', fontStyle: 'bold'
       }).setOrigin(0.5);
     }
-  }
+  } 
 
   drawMerchant() {
     const g = this.merchantGfx;
