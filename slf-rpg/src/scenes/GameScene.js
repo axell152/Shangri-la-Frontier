@@ -4,7 +4,7 @@ import { Enemy } from '../entities/Enemy.js';
 import { LootSystem } from '../systems/LootSystem.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
 import { EventBus } from '../EventBus.js';
-import { WORLD_W, WORLD_H, HUB, ZONES } from '../data/zones.js';
+import { WORLD_W, WORLD_H, TOWN, TOWN_CENTER, BUILDINGS, GATES, ZONES } from '../data/zones.js';
 
 const HUB_LINE_COLOR = 0xffd23d;
 
