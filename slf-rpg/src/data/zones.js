@@ -4,38 +4,117 @@
 export const WORLD_W = 16000;
 export const WORLD_H = 16000;
 
-// Rectangle de la ville (Havre-du-Départ) — taille inchangée. C'est aussi
-// la "safe zone" : aucun ennemi n'y entre, et c'est là qu'on sauvegarde (F).
+// Rectangle de la ville (Havre-du-Départ) — agrandi pour accueillir de vraies rues et 20 bâtiments.
+// C'est aussi la "safe zone" : aucun ennemi n'y entre, et c'est là qu'on sauvegarde (F).
 export const TOWN = {
   id: 'town',
   label: 'Havre-du-Départ',
-  x1: 7200, y1: 7450, x2: 8800, y2: 8550
+  x1: 6600, y1: 7000, x2: 9400, y2: 9400
 };
 export const TOWN_CENTER = { x: (TOWN.x1 + TOWN.x2) / 2, y: (TOWN.y1 + TOWN.y2) / 2 };
 
-// Bâtiments dans la ville, tous visitables (touche E près de la porte).
+// 20 Bâtiments dans la ville répartis en quartiers avec des rues
 export const BUILDINGS = [
+  // --- Quartier Central / Place principale ---
   {
-    id: 'merchant', label: 'Marchand', x: TOWN_CENTER.x + 130, y: TOWN_CENTER.y - 60,
+    id: 'merchant', label: 'Marchand', x: TOWN_CENTER.x + 140, y: TOWN_CENTER.y - 80,
     functional: true, color: 0x7a5a3a
   },
   {
     id: 'forge', label: 'Forge', desc: 'Réparation d\u2019armes — bientôt',
-    x: TOWN_CENTER.x - 220, y: TOWN_CENTER.y - 80, functional: false, color: 0x8a5a3a,
+    x: TOWN_CENTER.x - 240, y: TOWN_CENTER.y - 100, functional: false, color: 0x8a5a3a,
     interiorColor: 0x3a2a1f, npcName: 'Forgeron',
     lines: ['Reviens quand j\u2019aurai remis l\u2019enclume en état.', 'La chaleur, ça forge le caractère.']
   },
   {
     id: 'taverne', label: 'Taverne', desc: 'Auberge — point de sauvegarde', savePoint: true,
-    x: TOWN_CENTER.x - 220, y: TOWN_CENTER.y + 110, functional: false, color: 0x6b3a3a,
+    x: TOWN_CENTER.x - 240, y: TOWN_CENTER.y + 120, functional: false, color: 0x6b3a3a,
     interiorColor: 0x3b2416, npcName: 'Aubergiste',
     lines: ['Pas de quête pour l\u2019instant, mais assieds-toi.', 'On raconte des choses sur les ruines à l\u2019ouest...']
   },
   {
     id: 'echoppe', label: 'Échoppe générale', desc: 'Objets divers — bientôt',
-    x: TOWN_CENTER.x + 150, y: TOWN_CENTER.y + 130, functional: false, color: 0x3a6b5a,
+    x: TOWN_CENTER.x + 160, y: TOWN_CENTER.y + 140, functional: false, color: 0x3a6b5a,
     interiorColor: 0x24302a, npcName: 'Commerçant',
     lines: ['Rien à vendre pour l\u2019instant, désolé.', 'Repasse plus tard, l\u2019inventaire arrive.']
+  },
+
+  // --- Quartier Nord ---
+  {
+    id: 'house_north_1', label: 'Maison Nord', desc: 'Résidence',
+    x: TOWN_CENTER.x - 300, y: TOWN_CENTER.y - 550, functional: false, color: 0x6b4f3a, interiorColor: 0x3a2a1f
+  },
+  {
+    id: 'house_north_2', label: 'Maison Nord', desc: 'Résidence',
+    x: TOWN_CENTER.x, y: TOWN_CENTER.y - 550, functional: false, color: 0x5a7042, interiorColor: 0x24302a
+  },
+  {
+    id: 'house_north_3', label: 'Maison Nord', desc: 'Résidence',
+    x: TOWN_CENTER.x + 300, y: TOWN_CENTER.y - 550, functional: false, color: 0x7a5a4a, interiorColor: 0x3b2b1f
+  },
+  {
+    id: 'boulangerie', label: 'Boulangerie', desc: 'Pains et galettes',
+    x: TOWN_CENTER.x - 150, y: TOWN_CENTER.y - 360, functional: false, color: 0x9c7a4d, interiorColor: 0x42301f, npcName: 'Boulanger',
+    lines: ['Le pain tout chaud sort du four !', 'Attention à la suie.']
+  },
+  {
+    id: 'apothicaire', label: 'Apothicaire', desc: 'Remèdes et plantes',
+    x: TOWN_CENTER.x + 180, y: TOWN_CENTER.y - 360, functional: false, color: 0x4a7a65, interiorColor: 0x203b30, npcName: 'Herboriste',
+    lines: ['Les champignons des marécages sont toxiques.', 'Besoin d\u2019un onguent ?']
+  },
+
+  // --- Quartier Sud ---
+  {
+    id: 'house_south_1', label: 'Maison Sud', desc: 'Résidence',
+    x: TOWN_CENTER.x - 300, y: TOWN_CENTER.y + 450, functional: false, color: 0x6b4f3a, interiorColor: 0x3a2a1f
+  },
+  {
+    id: 'house_south_2', label: 'Maison Sud', desc: 'Résidence',
+    x: TOWN_CENTER.x, y: TOWN_CENTER.y + 450, functional: false, color: 0x5a7042, interiorColor: 0x24302a
+  },
+  {
+    id: 'house_south_3', label: 'Maison Sud', desc: 'Résidence',
+    x: TOWN_CENTER.x + 300, y: TOWN_CENTER.y + 450, functional: false, color: 0x7a5a4a, interiorColor: 0x3b2b1f
+  },
+  {
+    id: 'etables', label: 'Étables', desc: 'Bêtes de somme',
+    x: TOWN_CENTER.x - 160, y: TOWN_CENTER.y + 650, functional: false, color: 0x5e4530, interiorColor: 0x2e2015, npcName: 'Fermier',
+    lines: ['Les bêtes sont calmes aujourd\u2019hui.', 'Bonne route dans les biomes !']
+  },
+  {
+    id: 'tanerie', label: 'Tanerie', desc: 'Cuirs et peaux',
+    x: TOWN_CENTER.x + 160, y: TOWN_CENTER.y + 650, functional: false, color: 0x6b533a, interiorColor: 0x36281b, npcName: 'Tanneur',
+    lines: ['Le cuir protège bien des griffes.', 'J\u2019attends des peaux de loups spectraux.']
+  },
+
+  // --- Quartier Est ---
+  {
+    id: 'house_east_1', label: 'Maison Est', desc: 'Résidence',
+    x: TOWN_CENTER.x + 600, y: TOWN_CENTER.y - 250, functional: false, color: 0x705242, interiorColor: 0x38281d
+  },
+  {
+    id: 'house_east_2', label: 'Maison Est', desc: 'Résidence',
+    x: TOWN_CENTER.x + 600, y: TOWN_CENTER.y + 250, functional: false, color: 0x4f6070, interiorColor: 0x222c36
+  },
+  {
+    id: 'stall_fruits', label: 'Étal de Marché', desc: 'Fruits & Légumes',
+    x: TOWN_CENTER.x + 450, y: TOWN_CENTER.y - 80, functional: false, color: 0x8fbf6f, interiorColor: 0x2b4f3c, npcName: 'Marchand ambulant',
+    lines: ['Fraîchement cueillis aux abords de la forêt !']
+  },
+
+  // --- Quartier Ouest ---
+  {
+    id: 'house_west_1', label: 'Maison Ouest', desc: 'Résidence',
+    x: TOWN_CENTER.x - 600, y: TOWN_CENTER.y - 250, functional: false, color: 0x705242, interiorColor: 0x38281d
+  },
+  {
+    id: 'house_west_2', label: 'Maison Ouest', desc: 'Résidence',
+    x: TOWN_CENTER.x - 600, y: TOWN_CENTER.y + 250, functional: false, color: 0x4f6070, interiorColor: 0x222c36
+  },
+  {
+    id: 'stall_tissus', label: 'Étal de Tissus', desc: 'Étoffes et vêture',
+    x: TOWN_CENTER.x - 450, y: TOWN_CENTER.y + 80, functional: false, color: 0xc77fb3, interiorColor: 0x3b2430, npcName: 'Tisserande',
+    lines: ['De jolies couleurs pour vos voyages.']
   }
 ];
 
@@ -48,38 +127,12 @@ export const GATES = [
 ];
 
 // Biomes : rayon ~2600x1900, soit un diamètre ~3.25-3.45x les dimensions
-// de la ville (1600 large / 1100 haut) — largement de quoi explorer.
+// de la ville — largement de quoi explorer.
 const BIOME_RADIUS_X = 2600;
 const BIOME_RADIUS_Y = 1900;
 const GAP = 500; // "no man's land" entre la ville et chaque biome
 
 export const ZONES = [
-  { id: 'merchant', label: 'Marchand', x: TOWN_CENTER.x + 130, y: TOWN_CENTER.y - 60, functional: true, color: 0x7a5a3a },
-  {
-    id: 'forge', label: 'Forge', desc: 'Réparation darmes — bientôt',
-    x: TOWN_CENTER.x - 220, y: TOWN_CENTER.y - 80, functional: false, color: 0x8a5a3a,
-    interiorColor: 0x3a2a1f, npcName: 'Forgeron',
-    lines: ['Reviens quand jaurai remis lenclume en état.', 'La chaleur, ça forge le caractère.']
-  },
-  {
-    id: 'taverne', label: 'Taverne', desc: 'Auberge — point de sauvegarde', savePoint: true,
-    x: TOWN_CENTER.x - 220, y: TOWN_CENTER.y + 110, functional: false, color: 0x6b3a3a,
-    interiorColor: 0x3b2416, npcName: 'Aubergiste',
-    lines: ['Pas de quête pour linstant, mais assieds-toi.', 'On raconte des choses sur les ruines à louest...']
-  },
-  {
-    id: 'echoppe', label: 'Échoppe générale', desc: 'Objets divers — bientôt',
-    x: TOWN_CENTER.x + 150, y: TOWN_CENTER.y + 130, functional: false, color: 0x3a6b5a,
-    interiorColor: 0x24302a, npcName: 'Commerçant',
-    lines: ['Rien à vendre pour linstant, désolé.', 'Repasse plus tard, linventaire arrive.']
-  },
-  // Maisons et étals pour donner plus de densité
-  { id: 'house_1', label: 'Maison', desc: 'Foyer', x: TOWN_CENTER.x - 60, y: TOWN_CENTER.y - 160, functional: false, color: 0x6b4f3a, interiorColor: 0x3a2a1f },
-  { id: 'house_2', label: 'Maison', desc: 'Foyer', x: TOWN_CENTER.x + 80, y: TOWN_CENTER.y - 160, functional: false, color: 0x5a7042, interiorColor: 0x24302a },
-  { id: 'house_3', label: 'Maison', desc: 'Foyer', x: TOWN_CENTER.x - 320, y: TOWN_CENTER.y + 40, functional: false, color: 0x7a5a4a, interiorColor: 0x3b2b1f },
-  { id: 'stall_1', label: 'Étal', desc: 'Fruits & légumes', x: TOWN_CENTER.x + 40, y: TOWN_CENTER.y + 70, functional: false, color: 0x8fbf6f, interiorColor: 0x2b4f3c, npcName: 'Vendeur' },
-  { id: 'stall_2', label: 'Étal', desc: 'Tissus', x: TOWN_CENTER.x - 140, y: TOWN_CENTER.y + 40, functional: false, color: 0xc77fb3, interiorColor: 0x3b2430, npcName: 'Étaloir' }
-  ,
   {
     id: 'ruines_englouties',
     label: 'Ruines englouties',
