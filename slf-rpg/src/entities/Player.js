@@ -412,42 +412,73 @@ export class Player {
 useWeaponSkill(slotIndex) {
     const weapon = this.weapons.equipped;
     if (!weapon || !weapon.unlockedSkills || !weapon.unlockedSkills[slotIndex - 1]) {
-      return; // Aucune compétence débloquée à cet emplacement
+      return; // Aucune compétence débloquée sur ce slot (Touche 1 = Niv. 20, Touche 2 = Niv. 50)
     }
 
     const skill = weapon.unlockedSkills[slotIndex - 1];
     const enemies = this.scene.enemiesRef || [];
     const onHitEnemy = this.scene.onHitEnemyRef;
+    const baseDmg = (this.weapons.attackDamage + this.stats.totalAtk);
 
-    // Exemple de compétence : Onde de choc (Touche 1)
-    if (skill.id === 'shockwave') {
-      const radius = 120;
+    // --- COMPÉTENCE NIVEAU 20 (Touche 1) ---
+    if (skill.id === 'soul_drain' || skill.id === 'arcane_orb' || skill.id === 'heavy_slash') {
+      const radius = 140;
       for (const enemy of enemies) {
         if (enemy.dead) continue;
         const dist = Phaser.Math.Distance.Between(this.x, this.y, enemy.x, enemy.y);
         if (dist <= radius) {
-          const dmg = Math.max(1, (this.weapons.attackDamage + this.stats.totalAtk) * 2 - enemy.defense);
+          const dmg = Math.max(1, baseDmg * 2.5 - enemy.defense);
           if (onHitEnemy) onHitEnemy(enemy, dmg, true); // Critique garanti
         }
       }
 
-      // Effet visuel de l'onde de choc
+      // Effet visuel (cercle violet/rouge)
+      const gfx = this.scene.add.graphics();
+      gfx.setDepth(35);
+      let r = 10;
+      this.scene.tweens.add({
+        targets: { radius: 10 },
+        radius: radius,
+        duration: 350,
+        onUpdate: (tween, target) => {
+          gfx.clear();
+          gfx.lineStyle(4, weapon.color || 0x9900ff, 1 - (target.radius / radius));
+          gfx.strokeCircle(this.x, this.y, target.radius);
+        },
+        onComplete: () => gfx.destroy()
+      });
+    }
+
+    // --- COMPÉTENCE NIVEAU 50 (Touche 2 - Ultime) ---
+    else if (skill.id === 'death_reaper' || skill.id === 'time_warp' || skill.id === 'blade_storm') {
+      const radius = 220;
+      for (const enemy of enemies) {
+        if (enemy.dead) continue;
+        const dist = Phaser.Math.Distance.Between(this.x, this.y, enemy.x, enemy.y);
+        if (dist <= radius) {
+          const dmg = Math.max(1, baseDmg * 5 - enemy.defense);
+          if (onHitEnemy) onHitEnemy(enemy, dmg, true); // Dégâts massifs critiques
+        }
+      }
+
+      // Effet visuel d'explosion ultime (double cercle avec flash)
       const gfx = this.scene.add.graphics();
       gfx.setDepth(35);
       let r = 20;
       this.scene.tweens.add({
         targets: { radius: 20 },
         radius: radius,
-        duration: 300,
+        duration: 500,
         onUpdate: (tween, target) => {
           gfx.clear();
-          gfx.lineStyle(3, weapon.color || 0xb14dff, 1 - (target.radius / radius));
+          gfx.lineStyle(6, 0xffffff, 1 - (target.radius / radius));
           gfx.strokeCircle(this.x, this.y, target.radius);
+          gfx.lineStyle(2, weapon.color || 0xffd700, 1 - (target.radius / radius));
+          gfx.strokeCircle(this.x, this.y, target.radius * 0.8);
         },
         onComplete: () => gfx.destroy()
       });
     }
-    // Tu pourras ajouter d'autres `else if (skill.id === 'autre_competence')` ici par la suite.
   }
   
   // Renvoie false si le coup est ignoré (encore invulnérable), sinon un
