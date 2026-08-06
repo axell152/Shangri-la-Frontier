@@ -24,14 +24,14 @@ export class GameScene extends Phaser.Scene {
     this.add.grid(WORLD_W / 2, WORLD_H / 2, WORLD_W, WORLD_H, 40, 40, 0x14141f, 1, 0x1e1e2c, 1);
 
     // Safe zone (Havre-du-Départ) : seul endroit où sauvegarder, manuellement (touche F).
-    this.safeZone = { x: HUB.x, y: HUB.y, radius: HUB.radius };
+    this.safeZone = { x: TOWN_CENTER.x, y: TOWN_CENTER.y, radius: 120 };
     this.inSafeZone = false;
     const saveBuilding = BUILDINGS.find((b) => b.savePoint);
     this.savePoint = saveBuilding || null;
     this.saveRadius = 96;
 
     // Marchand : à l'intérieur de la safe zone, vente et fusion d'armes (touche T).
-    this.merchant = { x: HUB.x + 45, y: HUB.y - 20, radius: 45 };
+    this.merchant = { x: TOWN_CENTER.x + 45, y: TOWN_CENTER.y - 20, radius: 45 };
     this.nearMerchant = false;
     this.merchantPanelOpen = false;
     this.inventoryOpen = false;
@@ -45,7 +45,7 @@ export class GameScene extends Phaser.Scene {
     this.lootDrops = [];
     this.projectiles = [];
 
-    this.player = new Player(this, HUB.x, HUB.y);
+    this.player = new Player(this, TOWN_CENTER.x, TOWN_CENTER.y);
     this.cameras.main.startFollow(this.player.sprite, true, 0.1, 0.1);
 
     const save = SaveSystem.load();
@@ -118,7 +118,7 @@ export class GameScene extends Phaser.Scene {
     for (const zone of ZONES) {
       g.lineStyle(2, HUB_LINE_COLOR, 0.25);
       g.beginPath();
-      g.moveTo(HUB.x, HUB.y);
+      g.moveTo(TOWN_CENTER.x, TOWN_CENTER.y);
       g.lineTo(zone.x, zone.y);
       g.strokePath();
     }
@@ -139,7 +139,7 @@ export class GameScene extends Phaser.Scene {
       }).setOrigin(0.5).setAlpha(0.75);
     }
 
-    this.add.text(HUB.x, HUB.y - HUB.radius - 22, HUB.label, {
+    this.add.text(TOWN_CENTER.x, TOWN_CENTER.y - 120 - 22, TOWN.label, {
       fontSize: '18px', color: '#ffd23d', fontFamily: 'monospace', fontStyle: 'bold'
     }).setOrigin(0.5);
   }
@@ -163,7 +163,6 @@ export class GameScene extends Phaser.Scene {
   }
 
   // Ville praticable : sol distinct, bâtiments, portes vers chaque biome.
- // Ville praticable : sol distinct, bâtiments, portes vers chaque biome.
   drawTown() {
     const g = this.add.graphics();
     const w = TOWN.x2 - TOWN.x1;
@@ -296,28 +295,6 @@ export class GameScene extends Phaser.Scene {
         fontSize: '11px', color: '#cccccc', fontFamily: 'monospace'
       }).setOrigin(0.5);
     }
-
-    // Portes et sentiers vers l'extérieur
-    for (const gate of GATES) {
-      const [dx, dy] = GATE_DIRECTIONS[gate.direction];
-      const pathEnd = { x: gate.x + dx * 42, y: gate.y + dy * 42 };
-
-      g.lineStyle(20, 0x5e5037, 1);
-      g.beginPath();
-      g.moveTo(gate.x, gate.y);
-      g.lineTo(pathEnd.x, pathEnd.y);
-      g.strokePath();
-
-      g.fillStyle(0xffd23d, 0.8);
-      g.fillCircle(gate.x, gate.y, 8);
-      g.fillStyle(0x8a6d3a, 1);
-      g.fillRect(pathEnd.x - 12, pathEnd.y - 6, 24, 12);
-
-      const zone = ZONES.find((z) => z.id === gate.targetZone);
-      this.add.text(gate.x + dx * 28, gate.y + dy * 28, `→ ${zone.label}`, {
-        fontSize: '12px', color: '#ffd23d', fontFamily: 'monospace', fontStyle: 'bold'
-      }).setOrigin(0.5);
-    }
   } 
 
   drawMerchant() {
@@ -354,8 +331,6 @@ export class GameScene extends Phaser.Scene {
     if (ok) EventBus.emit('save-flash');
   }
 
-  // Position aléatoire dans une zone donnée (ou dans tout le monde si
-  // aucune zone n'est précisée), en évitant toujours la safe zone.
   randomPositionInZone(zone) {
     let x, y;
     let attempts = 0;
@@ -434,7 +409,7 @@ export class GameScene extends Phaser.Scene {
       EventBus.emit('loot-log', { type: 'kill', text: 'Aucune sauvegarde trouvée — nouveau départ.' });
     }
 
-    this.player.sprite.setPosition(HUB.x, HUB.y);
+    this.player.sprite.setPosition(TOWN_CENTER.x, TOWN_CENTER.y);
     this.player.invulnerableUntil = this.time.now + 1200;
     this.player.hitFlashUntil = 0;
     this.emitStatsUpdate();
@@ -540,7 +515,6 @@ export class GameScene extends Phaser.Scene {
       enemy.update(time, this.player.x, this.player.y, (amount) => this.damagePlayer(amount), this.inSafeZone);
     }
 
-    // Barrière invisible : aucun ennemi ne peut entrer dans la ville
     for (const enemy of this.enemies) {
       if (enemy.dead) continue;
       if (this.isInTown(enemy.x, enemy.y)) {
@@ -550,7 +524,6 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    // Gestion des projectiles en vol (arc, bâton, arme futuriste...)
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
       const proj = this.projectiles[i];
       proj.x += proj.vx;
@@ -586,8 +559,6 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    // Bâtiments visitables : détecte la proximité et gère l'entrée (touche E),
-    // prioritaire sur le ramassage de loot si les deux sont possibles au même endroit.
     const closeBuilding = this.enterableBuildings.find(
       (b) => Phaser.Math.Distance.Between(this.player.x, this.player.y, b.x, b.y) <= 55
     );
