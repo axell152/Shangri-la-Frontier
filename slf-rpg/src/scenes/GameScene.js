@@ -30,8 +30,7 @@ export class GameScene extends Phaser.Scene {
     this.savePoint = saveBuilding || null;
     this.saveRadius = 96;
 
-    // Marchand : à l'intérieur de la safe zone, vente et fusion d'armes (touche T).
-    // Marchand : positionné à l'intérieur de son propre bâtiment
+       // Marchand : positionné à l'intérieur de son propre bâtiment
     const merchantBuilding = BUILDINGS.find((b) => b.id === 'marchand' || b.id === 'boutique' || b.id === 'shop');
     const merchantX = merchantBuilding ? merchantBuilding.x : TOWN_CENTER.x + 150;
     const merchantY = merchantBuilding ? merchantBuilding.y : TOWN_CENTER.y;
@@ -119,6 +118,34 @@ export class GameScene extends Phaser.Scene {
     EventBus.emit('stats-updated', this.buildStatePayload());
   }
 
+  // --- Écouteurs pour la Forge (Réparation et Fusion) ---
+    this.isForgeOpen = false;
+    this.forgeMode = 'repair';
+
+    EventBus.on('forge-craft-panel', ({ open, mode }) => {
+      this.isForgeOpen = open;
+      if (mode) this.forgeMode = mode;
+      // TODO: Activer ou afficher votre interface visuelle de forge / réparation / fusion à l'écran si besoin
+    });
+
+    EventBus.on('forge-tab', (mode) => {
+      this.forgeMode = mode; // Reçoit 'repair' ou 'fusion' au clic sur l'onglet
+    });
+
+    // --- Écouteurs pour le Commerçant (Achat et Vente) ---
+    this.isMerchantOpen = false;
+    this.merchantMode = 'buy';
+
+    EventBus.on('merchant-shop-panel', ({ open, mode }) => {
+      this.isMerchantOpen = open;
+      if (mode) this.merchantMode = mode;
+      // TODO: Activer ou afficher votre interface visuelle de boutique / achat / vente à l'écran si besoin
+    });
+
+    EventBus.on('merchant-tab', (mode) => {
+      this.merchantMode = mode; // Reçoit 'buy' ou 'sell' au clic sur l'onglet
+    });
+  
   // Dessine les régions du monde (fond coloré + libellé + chemins en
   // pointillés depuis le hub), une fois pour toutes au chargement.
   drawWorldMap() {
