@@ -353,11 +353,29 @@ export class Player {
         executed = true;
       }
     } else if (!weapon || !weapon.ranged) {
-      const range = this.weapons.attackRange;
+      // On calcule une portée dynamique basée sur la portée de base de l'arme
+      // (Plus l'arme a de la portée/longueur, plus on touche loin)
+      const baseRange = this.weapons.attackRange || 40;
+      
+      // On ajuste la portée selon le type d'arme pour que les lances/épées touchent plus loin
+      let weaponReachBonus = 20;
+      if (weapon) {
+        if (weapon.kind === 'spear') weaponReachBonus = 45;
+        else if (weapon.kind === 'sword' || weapon.kind === 'katana') weaponReachBonus = 30;
+        else if (weapon.kind === 'axe' || weapon.kind === 'hammer') weaponReachBonus = 25;
+        else if (weapon.kind === 'dagger' || weapon.kind === 'claw') weaponReachBonus = 10;
+      }
+      
+      const totalReach = baseRange + weaponReachBonus;
+
       for (const enemy of enemies) {
         if (enemy.dead) continue;
+        
+        // On calcule la distance du joueur jusqu'au bord (ou centre) du monstre
         const dist = Phaser.Math.Distance.Between(this.x, this.y, enemy.x, enemy.y);
-        if (dist <= range) {
+        
+        // Si la distance est inférieure à la portée totale de l'arme + la taille du monstre
+        if (dist <= totalReach + (enemy.defSize / 2)) {
           const enemyDamage = Math.max(1, damage - enemy.defense);
           if (onHitEnemy) onHitEnemy(enemy, enemyDamage, isCrit);
         }
