@@ -1,8 +1,6 @@
 import Phaser from 'phaser';
 import { EventBus } from '../EventBus.js';
 
-// Scène intérieure générique pour les bâtiments visitables de la ville
-// (forge, taverne, échoppe/marchand).
 export class InteriorScene extends Phaser.Scene {
   constructor() {
     super('Interior');
@@ -19,16 +17,19 @@ export class InteriorScene extends Phaser.Scene {
 
     this.cameras.main.setBackgroundColor('#0b0b0f');
 
-    // Détection si le bâtiment est celui du marchand / échoppe
+    // Types de bâtiments spécifiques
     this.isMerchantBuilding = 
       this.building.id === 'echoppe' || 
       this.building.id === 'marchand' || 
       this.building.isMerchant || 
       (this.building.label && this.building.label.toLowerCase().includes('marchand'));
 
-    this.merchantPanelOpen = false;
+    this.isForgeBuilding = this.building.id === 'forge';
 
-    // Cadre principal de la pièce (agrandi et bien centré)
+    this.panelOpen = false;
+    this.activeTab = this.isForgeBuilding ? 'repair' : (this.isMerchantBuilding ? 'buy' : null);
+
+    // Cadre principal de la pièce
     const roomW = w - 160;
     const roomH = h - 160;
     const roomX = w / 2;
@@ -37,7 +38,7 @@ export class InteriorScene extends Phaser.Scene {
     this.add.rectangle(roomX, roomY, roomW, roomH, this.building.interiorColor || 0x221a14)
       .setStrokeStyle(3, 0x444d57);
 
-    // Titre et description du bâtiment
+    // Titre et description
     this.add.text(w / 2, 48, this.building.label, {
       fontFamily: 'monospace', fontSize: '22px', color: '#ffd23d', fontStyle: 'bold'
     }).setOrigin(0.5);
@@ -46,12 +47,12 @@ export class InteriorScene extends Phaser.Scene {
       fontFamily: 'monospace', fontSize: '13px', color: '#aaaaaa'
     }).setOrigin(0.5);
 
-    // --- Sol texturé propre ---
+    // Sol texturé
     for (let i = 0; i < 14; i++) {
       this.add.line(roomX - roomW / 2 + 50 + i * 90, roomY + roomH / 2 - 100, 0, 0, 0, 80, 0x1f1712, 0.4).setLineWidth(2);
     }
 
-    // --- Mobilier de fond & Éléments spécifiques ---
+    // Mobilier de fond & Éléments spécifiques
     const deskX = roomX;
     const deskY = roomY + 40;
     
@@ -62,67 +63,52 @@ export class InteriorScene extends Phaser.Scene {
       this.add.text(deskX, deskY - 10, 'COMPTOIR DE LA TAVERNE', {
         fontSize: '11px', color: '#ffd23d', fontFamily: 'monospace'
       }).setOrigin(0.5);
-      this.add.rectangle(deskX - 60, deskY - 12, 14, 18, 0xd8a96b).setAngle(6);
-      this.add.rectangle(deskX - 20, deskY - 12, 12, 16, 0xc48b4c).setAngle(-4);
-      this.add.rectangle(deskX + 30, deskY - 12, 14, 18, 0xd8a96b).setAngle(8);
     } else if (this.isMerchantBuilding) {
-      this.add.text(deskX, deskY - 10, 'ÉTAL DE MARCHANDISE', {
+      this.add.text(deskX, deskY - 10, 'ÉTAL DE MARCHANDISE (ACHAT / VENTE)', {
         fontSize: '11px', color: '#ffd23d', fontFamily: 'monospace'
       }).setOrigin(0.5);
-      this.add.rectangle(deskX - 50, deskY - 12, 20, 16, 0x7bcf7f).setAngle(-10);
-      this.add.rectangle(deskX, deskY - 12, 20, 16, 0xd96a6a).setAngle(8);
-      this.add.rectangle(deskX + 50, deskY - 12, 20, 16, 0x93c1ff).setAngle(6);
-    } else if (this.building.id === 'forge') {
-      this.add.text(deskX, deskY - 10, 'ENCLUME ET FOURNEAU', {
+    } else if (this.isForgeBuilding) {
+      this.add.text(deskX, deskY - 10, 'ENCLUME (RÉPARATION / FUSION)', {
         fontSize: '11px', color: '#ffd23d', fontFamily: 'monospace'
       }).setOrigin(0.5);
-      this.add.rectangle(deskX - 60, deskY - 12, 28, 20, 0xe75829);
-      this.add.rectangle(deskX + 40, deskY - 12, 16, 28, 0x3a2f1d);
-      this.add.line(deskX + 40, deskY - 20, 0, 0, 30, 0, 0x898174, 1).setLineWidth(3);
     }
 
-    // Étagères murales en arrière-plan
-    const shelfX = roomX;
-    const shelfY = roomY - 120;
-    this.add.rectangle(shelfX, shelfY, 360, 16, 0x3b2a1f).setStrokeStyle(1, 0x241812);
-    this.add.rectangle(shelfX - 140, shelfY + 30, 12, 45, 0x3b2a1f);
-    this.add.rectangle(shelfX + 140, shelfY + 30, 12, 45, 0x3b2a1f);
-    
-    for (let i = -100; i <= 100; i += 50) {
-      this.add.rectangle(shelfX + i, shelfY - 10, 16, 22, 0x5a6878);
+    // --- INTERFACE DES ONGLETS (Affichée si c'est la Forge ou le Marchand) ---
+    if (this.isForgeBuilding || this.isMerchantBuilding) {
+      this.createTabsUI(w, roomY);
     }
 
     // --- PNJ ---
     const npcX = roomX;
     const npcY = deskY - 45;
 
-    // Corps du PNJ
     this.add.rectangle(npcX, npcY - 18, 12, 12, 0xffffff);
     this.add.rectangle(npcX, npcY - 18, 10, 10, 0xd9c39a);
 
-    const shirtColor = this.building.id === 'forge' ? 0xb44e2e : (this.building.id === 'taverne' ? 0x6b3a3a : 0x2e6db4);
+    const shirtColor = this.isForgeBuilding ? 0xb44e2e : (this.building.id === 'taverne' ? 0x6b3a3a : 0x2e6db4);
     this.add.rectangle(npcX, npcY, 14, 12, shirtColor);
 
     this.add.rectangle(npcX - 3, npcY + 9, 3, 8, 0x333333);
     this.add.rectangle(npcX + 3, npcY + 9, 3, 8, 0x333333);
 
-    // Nom du PNJ
-    this.npcName = this.building.npcName || (this.isMerchantBuilding ? 'Marchand' : 'Habitant');
+    this.npcName = this.building.npcName || (this.isForgeBuilding ? 'Forgeron' : (this.isMerchantBuilding ? 'Marchand' : 'Habitant'));
     this.add.text(npcX, npcY - 34, this.npcName, {
       fontSize: '11px', color: '#ffd23d', fontFamily: 'monospace', backgroundColor: '#000000aa', padding: { x: 4, y: 2 }
     }).setOrigin(0.5);
 
-    // Prompt sous le comptoir
-    const defaultPrompt = this.isMerchantBuilding 
-      ? 'Appuyez sur T pour commercer' 
-      : 'Appuyez sur T pour parler';
+    // Texte de dialogue / statut
+    const defaultPrompt = this.isForgeBuilding 
+      ? 'Appuyez sur T pour ouvrir la Forge' 
+      : (this.isMerchantBuilding ? 'Appuyez sur T pour commercer' : 'Appuyez sur T pour parler');
 
-    this.dialogText = this.add.text(w / 2, roomY + 120, defaultPrompt, {
+    this.dialogText = this.add.text(w / 2, roomY + 130, defaultPrompt, {
       fontSize: '14px', color: '#fff', fontFamily: 'monospace', backgroundColor: '#16161dee', padding: { x: 10, y: 6 }
     }).setOrigin(0.5);
 
-    // Instructions en bas
-    const helpText = this.isMerchantBuilding ? 'E : sortir · T : commercer' : 'E : sortir · T : parler';
+    const helpText = this.isForgeBuilding || this.isMerchantBuilding 
+      ? 'E : sortir · T : interagir / basculer' 
+      : 'E : sortir · T : parler';
+      
     this.add.text(w / 2, h - 50, helpText, {
       fontSize: '12px', color: '#999', fontFamily: 'monospace'
     }).setOrigin(0.5);
@@ -132,6 +118,57 @@ export class InteriorScene extends Phaser.Scene {
     this.lastTalkAt = 0;
 
     this.cameras.main.fadeIn(250, 0, 0, 0);
+  }
+
+  // Crée visuellement les deux boutons d'onglets cliquables
+  createTabsUI(w, roomY) {
+    const tabY = roomY + 90;
+    
+    let label1 = this.isForgeBuilding ? 'REPARATION' : 'ACHAT';
+    let label2 = this.isForgeBuilding ? 'FUSION' : 'VENTE';
+
+    // Bouton 1
+    this.tab1Bg = this.add.rectangle(w / 2 - 80, tabY, 140, 28, 0x332211).setInteractive();
+    this.tab1Text = this.add.text(w / 2 - 80, tabY, label1, { fontSize: '12px', color: '#ffd23d', fontFamily: 'monospace' }).setOrigin(0.5);
+
+    // Bouton 2
+    this.tab2Bg = this.add.rectangle(w / 2 + 80, tabY, 140, 28, 0x222222).setInteractive();
+    this.tab2Text = this.add.text(w / 2 + 80, tabY, label2, { fontSize: '12px', color: '#888888', fontFamily: 'monospace' }).setOrigin(0.5);
+
+    // Événements de clic pour changer d'onglet instantanément à la souris
+    this.tab1Bg.on('pointerdown', () => {
+      this.activeTab = this.isForgeBuilding ? 'repair' : 'buy';
+      this.updateTabsVisuals();
+    });
+
+    this.tab2Bg.on('pointerdown', () => {
+      this.activeTab = this.isForgeBuilding ? 'fusion' : 'sell';
+      this.updateTabsVisuals();
+    });
+  }
+
+  updateTabsVisuals() {
+    if (!this.isForgeBuilding && !this.isMerchantBuilding) return;
+
+    const isTab1Active = this.isForgeBuilding ? (this.activeTab === 'repair') : (this.activeTab === 'buy');
+
+    if (isTab1Active) {
+      this.tab1Bg.setFillStyle(0x332211);
+      this.tab1Text.setColor('#ffd23d');
+      this.tab2Bg.setFillStyle(0x222222);
+      this.tab2Text.setColor('#888888');
+    } else {
+      this.tab1Bg.setFillStyle(0x222222);
+      this.tab1Text.setColor('#888888');
+      this.tab2Bg.setFillStyle(0x332211);
+      this.tab2Text.setColor('#ffd23d');
+    }
+
+    // Émet un signal pour indiquer quel sous-panneau afficher/actualiser
+    EventBus.emit('interior-tab-changed', {
+      buildingType: this.isForgeBuilding ? 'forge' : 'merchant',
+      activeTab: this.activeTab
+    });
   }
 
   update() {
@@ -144,17 +181,23 @@ export class InteriorScene extends Phaser.Scene {
       if (now - this.lastTalkAt < 400) return;
       this.lastTalkAt = now;
 
-      if (this.isMerchantBuilding) {
-        this.merchantPanelOpen = !this.merchantPanelOpen;
-        EventBus.emit('merchant-panel', this.merchantPanelOpen);
+      if (this.isMerchantBuilding || this.isForgeBuilding) {
+        this.panelOpen = !this.panelOpen;
         
+        if (this.isMerchantBuilding) {
+          EventBus.emit('merchant-panel', this.panelOpen);
+        } else if (this.isForgeBuilding) {
+          EventBus.emit('forge-panel', this.panelOpen);
+        }
+
         const gameScene = this.scene.get('Game');
         if (gameScene && typeof gameScene.emitStatsUpdate === 'function') {
           gameScene.emitStatsUpdate();
         }
 
-        if (this.merchantPanelOpen) {
-          this.dialogText.setText(`${this.npcName} : « Jetez un œil à ma marchandise ! »`);
+        if (this.panelOpen) {
+          const actionName = this.isForgeBuilding ? (this.activeTab === 'repair' ? 'réparer' : 'fusionner') : (this.activeTab === 'buy' ? 'acheter' : 'vendre');
+          this.dialogText.setText(`${this.npcName} : « Mode ${actionName} activé. »`);
         } else {
           this.dialogText.setText(`${this.npcName} : « À bientôt ! »`);
         }
@@ -168,6 +211,7 @@ export class InteriorScene extends Phaser.Scene {
 
   exitInterior() {
     EventBus.emit('merchant-panel', false);
+    EventBus.emit('forge-panel', false);
     EventBus.emit('inventory-panel', false);
 
     const game = this.scene.get('Game');
