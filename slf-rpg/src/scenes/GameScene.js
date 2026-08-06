@@ -31,11 +31,15 @@ export class GameScene extends Phaser.Scene {
     this.saveRadius = 96;
 
     // Marchand : à l'intérieur de la safe zone, vente et fusion d'armes (touche T).
-    this.merchant = { x: TOWN_CENTER.x + 45, y: TOWN_CENTER.y - 20, radius: 45 };
+    // Marchand : positionné à l'intérieur de son propre bâtiment
+    const merchantBuilding = BUILDINGS.find((b) => b.id === 'marchand' || b.id === 'boutique' || b.id === 'shop');
+    const merchantX = merchantBuilding ? merchantBuilding.x : TOWN_CENTER.x + 150;
+    const merchantY = merchantBuilding ? merchantBuilding.y : TOWN_CENTER.y;
+    
+    this.merchant = { x: merchantX, y: merchantY, radius: 45 };
     this.nearMerchant = false;
     this.merchantPanelOpen = false;
     this.inventoryOpen = false;
-
     this.enterableBuildings = BUILDINGS;
     
     this.drawWorldMap();
@@ -302,22 +306,7 @@ export class GameScene extends Phaser.Scene {
     }
   } 
 
-  drawMerchant() {
-    const g = this.merchantGfx;
-    const { x, y } = this.merchant;
-    g.clear();
-    g.fillStyle(0x6b4f2a, 1);
-    g.fillTriangle(x - 12, y + 16, x + 12, y + 16, x, y - 10);
-    g.fillStyle(0xd9c39a, 1);
-    g.fillCircle(x, y - 16, 7);
-    g.fillStyle(0x3a2a1a, 1);
-    g.fillTriangle(x - 9, y - 14, x + 9, y - 14, x, y - 26);
-    g.fillStyle(0x5a4632, 1);
-    g.fillRect(x - 18, y + 18, 36, 5);
-    g.fillRect(x - 16, y + 23, 3, 8);
-    g.fillRect(x + 13, y + 23, 3, 8);
-  }
-
+  
   enterBuilding(building) {
     const returnPos = { x: this.player.x, y: this.player.y };
     this.cameras.main.fadeOut(250, 0, 0, 0);
