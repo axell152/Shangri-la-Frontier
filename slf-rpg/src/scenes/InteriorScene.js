@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { EventBus } from '../EventBus.js';
-import { WEAPON_CATALOG } from '../weaponCatalog.js'; // Assure-toi du chemin d'accès exact vers ton catalogue
+import { WEAPON_CATALOG } from '../data/weaponCatalog.js'; // Assure-toi du chemin d'accès exact vers ton catalogue
 
 export class InteriorScene extends Phaser.Scene {
   constructor() {
