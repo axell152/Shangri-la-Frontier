@@ -17,11 +17,18 @@ export class GameScene extends Phaser.Scene {
     this.physics.world.setBounds(0, 0, WORLD_W, WORLD_H);
     this.cameras.main.setBounds(0, 0, WORLD_W, WORLD_H);
 
+    // Expose la définition de la ville à d'autres systèmes (DecorSystem, etc.)
+    this.TOWN = TOWN;
+    this.TOWN_CENTER = TOWN_CENTER;
+
     this.add.grid(WORLD_W / 2, WORLD_H / 2, WORLD_W, WORLD_H, 40, 40, 0x14141f, 1, 0x1e1e2c, 1);
 
     // Safe zone (Havre-du-Départ) : seul endroit où sauvegarder, manuellement (touche F).
     this.safeZone = { x: HUB.x, y: HUB.y, radius: HUB.radius };
     this.inSafeZone = false;
+    const saveBuilding = BUILDINGS.find((b) => b.savePoint);
+    this.savePoint = saveBuilding || null;
+    this.saveRadius = 96;
 
     // Marchand : à l'intérieur de la safe zone, vente et fusion d'armes (touche T).
     this.merchant = { x: HUB.x + 45, y: HUB.y - 20, radius: 45 };
@@ -52,8 +59,6 @@ export class GameScene extends Phaser.Scene {
     this.inventoryKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.I);
     this.pickupKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
 
-    this.safeZoneGfx = this.add.graphics();
-    this.drawSafeZone();
     this.merchantGfx = this.add.graphics();
     this.drawMerchant();
 
@@ -157,6 +162,164 @@ export class GameScene extends Phaser.Scene {
     g.fillTriangle(x - 3, y + 6, x + 3, y + 6, x, y - 3);
   }
 
+  // Ville praticable : sol distinct, bâtiments, portes vers chaque biome.
+ // Ville praticable : sol distinct, bâtiments, portes vers chaque biome.
+  drawTown() {
+    const g = this.add.graphics();
+    const w = TOWN.x2 - TOWN.x1;
+    const h = TOWN.y2 - TOWN.y1;
+
+    g.fillStyle(0x2a2a1f, 1);
+    g.fillRect(TOWN.x1, TOWN.y1, w, h);
+
+    // Chemins de terre et place centrale
+    g.fillStyle(0x5e5037, 1);
+    g.fillRect(TOWN_CENTER.x - 30, TOWN.y1, 60, h);
+    g.fillRect(TOWN.x1, TOWN_CENTER.y - 28, w, 56);
+    g.fillCircle(TOWN_CENTER.x, TOWN_CENTER.y, 44);
+    g.fillStyle(0x4f432f, 1);
+    g.fillCircle(TOWN_CENTER.x, TOWN_CENTER.y, 34);
+
+    // Bancs autour de la place
+    g.fillStyle(0x60462e, 1);
+    const benchY = TOWN_CENTER.y - 120;
+    for (let dx of [-120, 120]) {
+      g.fillRect(TOWN_CENTER.x + dx - 22, benchY, 44, 8);
+      g.fillRect(TOWN_CENTER.x + dx - 18, benchY - 18, 4, 18);
+      g.fillRect(TOWN_CENTER.x + dx + 14, benchY - 18, 4, 18);
+    }
+
+    // Lampadaires le long du chemin principal
+    g.fillStyle(0x3c2c20, 1);
+    for (let i = 0; i < 4; i++) {
+      const px = TOWN_CENTER.x - 180 + i * 120;
+      g.fillRect(px - 3, TOWN_CENTER.y - 250, 6, 80);
+      g.fillStyle(0xffd86a, 0.75);
+      g.fillCircle(px, TOWN_CENTER.y - 254, 10);
+      g.fillStyle(0x3c2c20, 1);
+    }
+
+    const roadWidth = 18;
+    for (const b of BUILDINGS) {
+      if (b.isDecor) continue; // On ne trace pas de route vers la fontaine centrale décorative
+      const dx = b.x - TOWN_CENTER.x;
+      const dy = b.y - TOWN_CENTER.y;
+      if (Math.abs(dx) >= Math.abs(dy)) {
+        g.fillRect(Math.min(b.x, TOWN_CENTER.x) - roadWidth / 2, b.y - roadWidth / 2, Math.abs(dx) + roadWidth, roadWidth);
+      } else {
+        g.fillRect(b.x - roadWidth / 2, Math.min(b.y, TOWN_CENTER.y) - roadWidth / 2, roadWidth, Math.abs(dy) + roadWidth);
+      }
+    }
+
+    g.lineStyle(3, 0xffb200, 0.5);
+    g.strokeRect(TOWN.x1, TOWN.y1, w, h);
+
+    this.add.text(TOWN_CENTER.x, TOWN.y1 - 40, TOWN.label, {
+      fontSize: '24px', color: '#ffd23d', fontFamily: 'monospace', fontStyle: 'bold'
+    }).setOrigin(0.5);
+
+    // --- DESSIN DE LA GRANDE FONTAINE CENTRALE (Style Cascade Minecraft) ---
+    const fx = TOWN_CENTER.x;
+    const fy = TOWN_CENTER.y;
+
+    // 1. Margelle extérieure en pierre grise (socle)
+    g.fillStyle(0x5b616b, 1);
+    g.fillCircle(fx, fy, 95);
+    g.lineStyle(4, 0x3d4249, 1);
+    g.strokeCircle(fx, fy, 95);
+
+    // 2. Grand bassin d'eau principal
+    g.fillStyle(0x1d6a96, 1);
+    g.fillCircle(fx, fy, 82);
+
+    // 3. Premier palier de cascade (intermédiaire)
+    g.fillStyle(0x6e7681, 1);
+    g.fillCircle(fx, fy, 56);
+    g.fillStyle(0x288bc4, 1);
+    g.fillCircle(fx, fy, 46);
+
+    // 4. Second palier supérieur
+    g.fillStyle(0x8c95a1, 1);
+    g.fillCircle(fx, fy, 30);
+    g.fillStyle(0x4fbbf7, 1);
+    g.fillCircle(fx, fy, 22);
+
+    // 5. Sommet de la fontaine et écume lumineuse
+    g.fillStyle(0xa5d6ff, 1);
+    g.fillCircle(fx, fy - 4, 12);
+    g.fillStyle(0xffffff, 0.9);
+    g.fillCircle(fx, fy - 6, 6);
+
+    // Étiquette de la fontaine au centre
+    this.add.text(fx, fy + 105, 'Grande Fontaine', {
+      fontSize: '13px', color: '#8be9fd', fontFamily: 'monospace', fontStyle: 'bold', backgroundColor: '#000000aa', padding: { x: 4, y: 2 }
+    }).setOrigin(0.5);
+
+
+    // Bâtiments de la ville
+    for (const b of BUILDINGS) {
+      if (b.isDecor) continue; // Déjà géré par la fontaine
+
+      const bw = 140; // width
+      const bh = 96;  // height
+      g.fillStyle(b.color, 1);
+      g.fillRect(b.x - bw / 2, b.y - bh / 2 + 8, bw, bh - 8);
+      g.fillStyle(0x1a1a14, 1);
+      g.fillTriangle(b.x - (bw / 2 + 6), b.y - bh / 2 + 8, b.x + (bw / 2 + 6), b.y - bh / 2 + 8, b.x, b.y - bh / 2 - 30);
+      g.fillStyle(0x272218, 1);
+      g.fillRect(b.x - Math.round(bw * 0.175), b.y - Math.round(bh * 0.08), Math.round(bw * 0.35), Math.round(bh * 0.65));
+      g.fillStyle(0x5c4d3b, 1);
+      g.fillRect(b.x - Math.round(bw * 0.475), b.y + Math.round(bh * 0.04), Math.round(bw * 0.125), Math.round(bh * 0.1));
+      g.fillRect(b.x + Math.round(bw * 0.325), b.y + Math.round(bh * 0.04), Math.round(bw * 0.125), Math.round(bh * 0.1));
+      g.fillStyle(0xe1c278, 1);
+      g.fillRect(b.x - Math.round(bw * 0.325), b.y - Math.round(bh * 0.125), Math.round(bw * 0.15), Math.round(bh * 0.125));
+      g.fillRect(b.x + Math.round(bw * 0.175), b.y - Math.round(bh * 0.125), Math.round(bw * 0.15), Math.round(bh * 0.125));
+      g.fillStyle(0x42341f, 1);
+      g.fillRect(b.x - Math.round(bw * 0.12), b.y + Math.round(bh * 0.08), Math.round(bw * 0.24), Math.round(bh * 0.2));
+      g.fillStyle(0x593e2d, 1);
+      g.fillRect(b.x - Math.round(bw * 0.285), b.y - Math.round(bh * 0.2), Math.round(bw * 0.57), Math.round(bh * 0.1));
+      g.fillStyle(0x3a2c20, 1);
+      g.fillRect(b.x - Math.round(bw * 0.075), b.y - Math.round(bh * 0.23), Math.round(bw * 0.15), Math.round(bh * 0.06));
+      g.fillStyle(0x4b3424, 1);
+      g.fillRect(b.x - Math.round(bw * 0.025), b.y - Math.round(bh * 0.16), Math.round(bw * 0.05), Math.round(bh * 0.07));
+      if (b.id === 'taverne') {
+        g.fillStyle(0x3f2b2b, 1);
+        g.fillRect(b.x - Math.round(bw * 0.34), b.y - Math.round(bh * 0.62), Math.round(bw * 0.68), Math.round(bh * 0.14));
+        g.fillStyle(0xffd23d, 1);
+        g.fillRect(b.x - Math.round(bw * 0.2), b.y - Math.round(bh * 0.56), Math.round(bw * 0.4), Math.round(bh * 0.03));
+      }
+
+      this.add.text(b.x, b.y + Math.round(bh * 0.4), b.label, {
+        fontSize: '14px', color: '#ffffff', fontFamily: 'monospace', fontStyle: 'bold'
+      }).setOrigin(0.5);
+      this.add.text(b.x, b.y + Math.round(bh * 0.6), b.desc, {
+        fontSize: '11px', color: '#cccccc', fontFamily: 'monospace'
+      }).setOrigin(0.5);
+    }
+
+    // Portes et sentiers vers l'extérieur
+    for (const gate of GATES) {
+      const [dx, dy] = GATE_DIRECTIONS[gate.direction];
+      const pathEnd = { x: gate.x + dx * 42, y: gate.y + dy * 42 };
+
+      g.lineStyle(20, 0x5e5037, 1);
+      g.beginPath();
+      g.moveTo(gate.x, gate.y);
+      g.lineTo(pathEnd.x, pathEnd.y);
+      g.strokePath();
+
+      g.fillStyle(0xffd23d, 0.8);
+      g.fillCircle(gate.x, gate.y, 8);
+      g.fillStyle(0x8a6d3a, 1);
+      g.fillRect(pathEnd.x - 12, pathEnd.y - 6, 24, 12);
+
+      const zone = ZONES.find((z) => z.id === gate.targetZone);
+      this.add.text(gate.x + dx * 28, gate.y + dy * 28, `→ ${zone.label}`, {
+        fontSize: '12px', color: '#ffd23d', fontFamily: 'monospace', fontStyle: 'bold'
+      }).setOrigin(0.5);
+    }
+  } 
+
   drawMerchant() {
     const g = this.merchantGfx;
     const { x, y } = this.merchant;
@@ -171,6 +334,15 @@ export class GameScene extends Phaser.Scene {
     g.fillRect(x - 18, y + 18, 36, 5);
     g.fillRect(x - 16, y + 23, 3, 8);
     g.fillRect(x + 13, y + 23, 3, 8);
+  }
+
+  enterBuilding(building) {
+    const returnPos = { x: this.player.x, y: this.player.y };
+    this.cameras.main.fadeOut(250, 0, 0, 0);
+    this.cameras.main.once('camerafadeoutcomplete', () => {
+      this.scene.launch('Interior', { building, returnPos });
+      this.scene.pause();
+    });
   }
 
   manualSave() {
@@ -361,21 +533,19 @@ export class GameScene extends Phaser.Scene {
   update(time) {
     if (this.playerIsDead) return;
 
+    if (this.decorSystem) this.decorSystem.update(time);
+
     this.player.update(time, this.enemies, (enemy, dmg, crit) => this.onHitEnemy(enemy, dmg, crit));
     for (const enemy of this.enemies) {
       enemy.update(time, this.player.x, this.player.y, (amount) => this.damagePlayer(amount), this.inSafeZone);
     }
 
-    // Barrière invisible : aucun ennemi ne peut entrer dans la safe zone
+    // Barrière invisible : aucun ennemi ne peut entrer dans la ville
     for (const enemy of this.enemies) {
       if (enemy.dead) continue;
-      const distToZone = Phaser.Math.Distance.Between(enemy.x, enemy.y, this.safeZone.x, this.safeZone.y);
-      if (distToZone < this.safeZone.radius) {
-        const angle = Phaser.Math.Angle.Between(this.safeZone.x, this.safeZone.y, enemy.x, enemy.y);
-        enemy.sprite.setPosition(
-          this.safeZone.x + Math.cos(angle) * this.safeZone.radius,
-          this.safeZone.y + Math.sin(angle) * this.safeZone.radius
-        );
+      if (this.isInTown(enemy.x, enemy.y)) {
+        const { x, y } = this.pushOutOfTown(enemy.x, enemy.y);
+        enemy.sprite.setPosition(x, y);
         enemy.sprite.body.setVelocity(0, 0);
       }
     }
@@ -416,8 +586,22 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
+    // Bâtiments visitables : détecte la proximité et gère l'entrée (touche E),
+    // prioritaire sur le ramassage de loot si les deux sont possibles au même endroit.
+    const closeBuilding = this.enterableBuildings.find(
+      (b) => Phaser.Math.Distance.Between(this.player.x, this.player.y, b.x, b.y) <= 55
+    );
+    if (closeBuilding !== this.nearBuilding) {
+      this.nearBuilding = closeBuilding || null;
+      EventBus.emit('building-nearby', this.nearBuilding ? this.nearBuilding.label : null);
+    }
+
     if (Phaser.Input.Keyboard.JustDown(this.pickupKey)) {
-      this.tryPickupLoot();
+      if (this.nearBuilding) {
+        this.enterBuilding(this.nearBuilding);
+      } else {
+        this.tryPickupLoot();
+      }
     }
 
     const distToSafeZone = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.safeZone.x, this.safeZone.y);

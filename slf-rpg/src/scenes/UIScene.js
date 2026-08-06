@@ -16,6 +16,7 @@ export class UIScene extends Phaser.Scene {
     EventBus.on('safe-zone-status', (inZone) => this.toggleSavePrompt(inZone));
     EventBus.on('save-flash', () => this.flashSaveConfirmed());
     EventBus.on('merchant-nearby', (near) => this.toggleMerchantPrompt(near));
+    EventBus.on('building-nearby', (label) => this.toggleBuildingPrompt(label));
     EventBus.on('merchant-panel', (open) => this.toggleMerchantPanel(open));
     EventBus.on('inventory-panel', (open) => this.toggleInventoryPanel(open));
   }
@@ -60,6 +61,8 @@ export class UIScene extends Phaser.Scene {
         #hud-save-prompt.confirmed { background: rgba(157,255,157,0.15); border-color: #9dff9d; color: #9dff9d; }
         #hud-merchant-prompt { bottom: 76px; background: rgba(61,157,255,0.15); border: 1px solid #3d9dff; color: #9dd4ff; }
         #hud-merchant-prompt.visible { display: block; }
+        #hud-building-prompt { bottom: 76px; background: rgba(157,255,157,0.12); border: 1px solid #9dff9d; color: #c9ffc9; }
+        #hud-building-prompt.visible { display: block; }
 
         /* Modales (inventaire / marchand) */
         .hud-modal { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -87,8 +90,9 @@ export class UIScene extends Phaser.Scene {
       <div id="hud-hint">Z,Q,S,D: déplacer · Clic gauche: attaquer · E: ramasser · I: inventaire
         · <span id="hud-reset-save" style="text-decoration: underline; cursor: pointer; pointer-events: auto;">réinitialiser la sauvegarde</span>
       </div>
-      <div id="hud-save-prompt">Appuie sur F pour sauvegarder</div>
+      <div id="hud-save-prompt">Appuie sur F dans la taverne pour sauvegarder</div>
       <div id="hud-merchant-prompt">Appuie sur T pour parler au marchand</div>
+      <div id="hud-building-prompt"></div>
       <div id="hud-hitflash"></div>
       <div id="hud-gameover">
         TU ES MORT<br>
@@ -238,6 +242,16 @@ export class UIScene extends Phaser.Scene {
 
   toggleMerchantPrompt(near) {
     this.dom.querySelector('#hud-merchant-prompt').classList.toggle('visible', near);
+  }
+
+  toggleBuildingPrompt(label) {
+    const el = this.dom.querySelector('#hud-building-prompt');
+    if (label) {
+      el.textContent = `Appuie sur E pour entrer (${label})`;
+      el.classList.add('visible');
+    } else {
+      el.classList.remove('visible');
+    }
   }
 
   pushLog(entry) {
