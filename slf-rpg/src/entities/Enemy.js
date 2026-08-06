@@ -113,33 +113,82 @@ export class Enemy {
     const px = this.sprite.x;
     const py = this.sprite.y;
     let swing = Math.sin(this.animFrame) * 4;
+    const color = this.mainColor;
+    const shape = this.def.shape || 'humanoid';
 
-    // Utilisation de la couleur principale définie dans ton fichier data/enemies.js
-    const mainColor = this.mainColor;
-    const darkColor = 0x111111;
+    if (shape === 'slime') {
+      // Forme de flaque gélatineuse rebondissante
+      let squash = Math.sin(this.animFrame * 2) * 3;
+      this.gfx.fillStyle(color, 0.9);
+      this.gfx.fillRect(px - 12, py - 4 + squash, 24, 12 - squash);
+      this.gfx.fillStyle(0xffffff, 0.8);
+      this.gfx.fillRect(px - 4, py, 4, 4); // Yeux rigolos
+      this.gfx.fillRect(px + 2, py, 4, 4);
+    } 
+    else if (shape === 'bat') {
+      // Chauve-souris ailée
+      let flap = Math.cos(this.animFrame * 4) * 8;
+      this.gfx.fillStyle(color, 1);
+      this.gfx.fillRect(px - 4, py - 4, 8, 8); // Corps
+      this.gfx.fillStyle(0x331144, 1);
+      this.gfx.fillRect(px - 14, py - 6 + flap, 10, 4); // Aile gauche
+      this.gfx.fillRect(px + 4, py - 6 + flap, 10, 4);  // Aile droite
+    }
+    else if (shape === 'wolf') {
+      // Loup ramassé
+      this.gfx.fillStyle(color, 1);
+      this.gfx.fillRect(px - 12, py - 6, 24, 10); // Corps allongé
+      this.gfx.fillRect(px + 6, py - 14, 6, 8);   // Tête pointue
+      this.gfx.fillRect(px - 14, py - 2, 4, 8);   // Pattes
+      this.gfx.fillRect(px + 10, py - 2, 4, 8);
+    }
+    else if (shape === 'spider') {
+      // Araignée menaçante
+      this.gfx.fillStyle(color, 1);
+      this.gfx.fillRect(px - 10, py - 8, 20, 12); // Corps rond
+      this.gfx.fillStyle(0xff0000, 1);
+      this.gfx.fillRect(px - 4, py - 6, 2, 2);    // Multiples yeux rouges
+      this.gfx.fillRect(px + 2, py - 6, 2, 2);
+      // Pattes articulées
+      this.gfx.lineStyle(2, color, 1);
+      this.gfx.lineBetween(px - 10, py, px - 18, py + 6 + swing);
+      this.gfx.lineBetween(px + 10, py, px + 18, py + 6 - swing);
+    }
+    else if (shape === 'golem' || shape === 'orc' || shape === 'mech_boss' || shape === 'treant' || shape === 'orc_warlord' || shape === 'queen_slime') {
+      // Gros monstres / Boss massifs (style blocs blindés)
+      this.gfx.fillStyle(0x111111, 1);
+      this.gfx.fillRect(px - 10 + swing, py + 4, 8, 16);
+      this.gfx.fillRect(px + 2 - swing, py + 4, 8, 16);
 
-    // --- 1. JAMBES ---
-    this.gfx.fillStyle(darkColor, 1);
-    this.gfx.fillRect(px - 6 + swing, py + 4, 5, 12);
-    this.gfx.fillRect(px + 1 - swing, py + 4, 5, 12);
+      this.gfx.fillStyle(color, 1);
+      this.gfx.fillRect(-this.defSize/2, -this.defSize/2, this.defSize, this.defSize); // Corps massif proportionnel à sa taille
+      
+      // Armure / Épaulières distinctives pour les boss
+      this.gfx.fillStyle(0xffcc00, 1);
+      this.gfx.fillRect(px - this.defSize/2 - 4, py - this.defSize/2, 6, 10);
+      this.gfx.fillRect(px + this.defSize/2 - 2, py - this.defSize/2, 6, 10);
 
-    // --- 2. CORPS / TORSE ---
-    this.gfx.fillStyle(mainColor, 1);
-    this.gfx.fillRect(px - 10, py - 10, 20, 16);
+      // Yeux menaçants du boss
+      this.gfx.fillStyle(0xff0000, 1);
+      this.gfx.fillRect(px - 6, py - 8, 4, 4);
+      this.gfx.fillRect(px + 2, py - 8, 4, 4);
+    }
+    else {
+      // Forme humanoïde standard (Gobelin / Orc de base)
+      this.gfx.fillStyle(0x111111, 1);
+      this.gfx.fillRect(px - 6 + swing, py + 4, 5, 12);
+      this.gfx.fillRect(px + 1 - swing, py + 4, 5, 12);
 
-    // --- 3. BRAS ---
-    this.gfx.fillRect(px - 14 - swing, py - 10, 4, 10);
-    this.gfx.fillRect(px + 10 + swing, py - 10, 4, 10);
+      this.gfx.fillStyle(color, 1);
+      this.gfx.fillRect(px - 10, py - 10, 20, 16);
+      this.gfx.fillRect(px - 14 - swing, py - 10, 4, 10);
+      this.gfx.fillRect(px + 10 + swing, py - 10, 4, 10);
+      this.gfx.fillRect(px - 8, py - 22, 16, 12);
 
-    // --- 4. TÊTE & YEUX MENAÇANTS ---
-    this.gfx.fillStyle(mainColor, 1);
-    this.gfx.fillRect(px - 8, py - 22, 16, 12);
-
-    // Petits yeux rouges/lumineux pour contraster
-    this.gfx.fillStyle(0xff0000, 1);
-    this.gfx.fillRect(px - 4, py - 18, 3, 3);
-    this.gfx.fillRect(px + 1, py - 18, 3, 3);
-  }
+      this.gfx.fillStyle(0xff0000, 1);
+      this.gfx.fillRect(px - 4, py - 18, 3, 3);
+      this.gfx.fillRect(px + 1, py - 18, 3, 3);
+    }
 
   // Pattern de boss "façon Shangri-La Frontier" : une zone de danger
   // s'affiche et grossit pendant ~1s avant l'impact. Le joueur doit en
