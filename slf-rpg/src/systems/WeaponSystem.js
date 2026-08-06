@@ -9,6 +9,37 @@ const MERGE_COST_BY_TIER = {
   COMMUNE: 30, PEU_COMMUNE: 80, RARE: 200, EPIQUE: 500, LEGENDAIRE: 1500, MYTHIQUE: 5000
 };
 
+// Renvoie les compétences uniques de l'arme selon son nom exact
+function getUniqueSkillsForWeapon(weaponName, weaponKind) {
+  // Exemples de compétences ultra-personnalisées par arme unique :
+  switch (weaponName) {
+    case "L'Exécutrice des Âmes":
+      return [
+        { level: 20, id: 'soul_drain', name: 'Aspiration d\'Âme' },
+        { level: 50, id: 'death_reaper', name: 'Fauchage Spectral' }
+      ];
+    case "Fulgurance de l'Aube":
+      return [
+        { level: 20, id: 'sun_flash', name: 'Éclair Solaire' },
+        { level: 50, id: 'nova_burst', name: 'Nova Radiante' }
+      ];
+    default:
+      // Si c'est une arme générique, on peut lui donner des compétences basées sur son type 
+      // ou générer un effet par défaut pour les niveaux 20 et 50 :
+      if (weaponKind === 'staff') {
+        return [
+          { level: 20, id: 'arcane_orb', name: 'Orbe Arcanique' },
+          { level: 50, id: 'time_warp', name: 'Distorsion Temporelle' }
+        ];
+      } else {
+        return [
+          { level: 20, id: 'heavy_slash', name: 'Taillade Sismique' },
+          { level: 50, id: 'blade_storm', name: 'Tempête de Lames' }
+        ];
+      }
+  }
+}
+
 export class WeaponSystem {
   constructor() {
     this.inventory = [];
